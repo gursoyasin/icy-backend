@@ -1,24 +1,19 @@
-//
-//  ContentView.swift
-//  ıcy
-//
-//  Created by yacN on 26.01.2026.
-//
 
 import SwiftUI
 
 struct ContentView: View {
+    @State private var isLoggedIn = APIService.shared.authToken != nil
+    
     var body: some View {
-        VStack {
-            Image(systemName: "globe")
-                .imageScale(.large)
-                .foregroundStyle(.tint)
-            Text("Hello, world!")
+        if isLoggedIn {
+            DashboardView(isLoggedIn: $isLoggedIn)
+        } else {
+            LoginView(isLoggedIn: $isLoggedIn)
         }
-        .padding()
     }
 }
 
 #Preview {
     ContentView()
 }
+

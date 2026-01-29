@@ -951,3 +951,15 @@
 {"level":"info","message":"- Environment: development","service":"icy-backend","timestamp":"2026-01-29 20:51:58"}
 {"level":"info","message":"🚀 PROFESSIONAL Backend running on port 3000","service":"icy-backend","timestamp":"2026-01-29 21:11:01"}
 {"level":"info","message":"- Environment: production","service":"icy-backend","timestamp":"2026-01-29 21:11:01"}
+{"level":"info","message":"GET /api/auth/me","service":"icy-backend","timestamp":"2026-01-29 21:21:40"}
+{"level":"info","message":"GET /api/auth/me","service":"icy-backend","timestamp":"2026-01-29 21:21:40"}
+{"level":"info","message":"GET /api/stats","service":"icy-backend","timestamp":"2026-01-29 21:21:41"}
+{"level":"info","message":"GET /api/stats","service":"icy-backend","timestamp":"2026-01-29 21:21:41"}
+{"level":"info","message":"GET /api/notifications","service":"icy-backend","timestamp":"2026-01-29 21:21:42"}
+{"level":"info","message":"GET /api/notifications","service":"icy-backend","timestamp":"2026-01-29 21:21:42"}
+{"level":"info","message":"🚀 PROFESSIONAL Backend running on port 3000","service":"icy-backend","timestamp":"2026-01-29 21:31:50"}
+{"level":"info","message":"- Environment: production","service":"icy-backend","timestamp":"2026-01-29 21:31:50"}
+{"level":"info","message":"🚀 PROFESSIONAL Backend running on port 3000","service":"icy-backend","timestamp":"2026-01-29 22:10:52"}
+{"level":"info","message":"- Environment: production","service":"icy-backend","timestamp":"2026-01-29 22:10:52"}
+{"level":"info","message":"🚀 PROFESSIONAL Backend running on port 3000","service":"icy-backend","timestamp":"2026-01-29 22:10:54"}
+{"level":"info","message":"- Environment: production","service":"icy-backend","timestamp":"2026-01-29 22:10:54"}

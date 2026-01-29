@@ -12,5 +12,7 @@ router.use(authenticate);
 router.get('/conversations', commController.getConversations);
 router.get('/conversations/:id/messages', commController.getMessages);
 router.post('/messages', commController.sendMessage);
+router.get('/notifications', commController.getNotifications);
+router.get('/calls', commController.getCalls);
 
 module.exports = router;

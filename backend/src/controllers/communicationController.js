@@ -75,3 +75,14 @@ exports.webhook = async (req, res, next) => {
         res.json({ status: "processed" });
     } catch (e) { next(e); }
 };
+
+exports.getNotifications = async (req, res, next) => {
+    // Return empty array for now or fetch from DB if Notification model exists
+    // To prevent crash, we return empty list valid JSON.
+    res.json([]);
+};
+
+exports.getCalls = async (req, res, next) => {
+    // Return empty array for now
+    res.json([]);
+};
