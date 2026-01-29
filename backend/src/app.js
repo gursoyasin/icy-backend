@@ -7,6 +7,7 @@ const logger = require('./utils/logger');
 // const appRoutes = require('./routes/index'); // Will create this next
 
 const app = express();
+app.set('trust proxy', 1); // Enable trust for Render/Cloudflare proxy
 
 // 1. GLOBAL MIDDLEWARES
 // Set security HTTP headers
