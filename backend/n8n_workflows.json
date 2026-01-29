@@ -1,0 +1,169 @@
+[
+    {
+        "name": "ICY - Appointment Created",
+        "nodes": [
+            {
+                "parameters": {
+                    "httpMethod": "POST",
+                    "path": "appointment_created",
+                    "options": {}
+                },
+                "name": "Webhook",
+                "type": "n8n-nodes-base.webhook",
+                "typeVersion": 1,
+                "position": [
+                    250,
+                    300
+                ]
+            },
+            {
+                "parameters": {
+                    "amount": 24,
+                    "unit": "hours"
+                },
+                "name": "Wait 24h Before",
+                "type": "n8n-nodes-base.wait",
+                "typeVersion": 1,
+                "position": [
+                    450,
+                    300
+                ]
+            },
+            {
+                "parameters": {
+                    "content": "=Sayın {{ $json.body.patientName }}, yarın {{ $json.body.date }} tarihindeki randenuzu hatırlatırız."
+                },
+                "name": "Send WhatsApp",
+                "type": "n8n-nodes-base.discord",
+                "typeVersion": 1,
+                "position": [
+                    650,
+                    300
+                ],
+                "notes": "Replace with WhatsApp Node"
+            }
+        ],
+        "connections": {
+            "Webhook": {
+                "main": [
+                    [
+                        {
+                            "node": "Wait 24h Before",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Wait 24h Before": {
+                "main": [
+                    [
+                        {
+                            "node": "Send WhatsApp",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            }
+        }
+    },
+    {
+        "name": "ICY - Status Changed",
+        "nodes": [
+            {
+                "parameters": {
+                    "httpMethod": "POST",
+                    "path": "appointment_status_changed",
+                    "options": {}
+                },
+                "name": "Webhook",
+                "type": "n8n-nodes-base.webhook",
+                "typeVersion": 1,
+                "position": [
+                    250,
+                    500
+                ]
+            },
+            {
+                "parameters": {
+                    "dataType": "string",
+                    "value1": "={{ $json.body.event }}",
+                    "rules": {
+                        "rules": [
+                            {
+                                "value2": "no-show"
+                            },
+                            {
+                                "value2": "arrived",
+                                "output": 1
+                            }
+                        ]
+                    }
+                },
+                "name": "Switch",
+                "type": "n8n-nodes-base.switch",
+                "typeVersion": 1,
+                "position": [
+                    450,
+                    500
+                ]
+            },
+            {
+                "parameters": {
+                    "content": "=Sayın {{ $json.body.patientName }}, randevunuza gelemediğinizi fark ettik. Yeni bir randevu oluşturmak ister misiniz?"
+                },
+                "name": "Send No-Show Msg",
+                "type": "n8n-nodes-base.discord",
+                "typeVersion": 1,
+                "position": [
+                    700,
+                    400
+                ]
+            },
+            {
+                "parameters": {
+                    "content": "=Sayın {{ $json.body.patientName }}, tedaviniz tamamlandı. Bizi tercih ettiğiniz için teşekkürler."
+                },
+                "name": "Send Thank You Msg",
+                "type": "n8n-nodes-base.discord",
+                "typeVersion": 1,
+                "position": [
+                    700,
+                    600
+                ]
+            }
+        ],
+        "connections": {
+            "Webhook": {
+                "main": [
+                    [
+                        {
+                            "node": "Switch",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            },
+            "Switch": {
+                "main": [
+                    [
+                        {
+                            "node": "Send No-Show Msg",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ],
+                    [
+                        {
+                            "node": "Send Thank You Msg",
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            }
+        }
+    }
+]

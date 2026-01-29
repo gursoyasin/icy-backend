@@ -1,0 +1,253 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  name      String
+  role      String   @default("staff") // admin, doctor, staff
+  createdAt DateTime @default(now())
+  
+  branchId  String?
+  branch    Branch?  @relation(fields: [branchId], references: [id])
+  
+  appointments Appointment[]
+  messages     Message[]
+  notifications Notification[]
+  tickets      SupportTicket[]
+}
+
+model Branch {
+  id        String   @id @default(uuid())
+  name      String
+  address   String?
+  city      String
+  createdAt DateTime @default(now())
+  
+  users     User[]
+  patients  Patient[]
+}
+
+model Patient {
+  id          String   @id @default(uuid())
+  fullName    String
+  email       String?
+  phoneNumber String?
+  status      String   @default("active") // active, lead, treated
+  notes       String?
+  createdAt   DateTime @default(now())
+  
+  branchId  String?
+  branch    Branch?  @relation(fields: [branchId], references: [id])
+  
+  appointments   Appointment[]
+  transfers      Transfer[]
+  accommodations Accommodation[]
+  invoices       Invoice[]
+  photos         PhotoEntry[]
+  calls          CallLog[]
+  surveys        SurveyResult[]
+}
+
+model Appointment {
+  id        String   @id @default(uuid())
+  date      DateTime
+  type      String
+  status    String   @default("scheduled") // scheduled, completed, cancelled
+  
+  patientId String
+  patient   Patient @relation(fields: [patientId], references: [id])
+  
+  doctorId  String
+  doctor    User    @relation(fields: [doctorId], references: [id])
+  
+  createdAt DateTime @default(now())
+}
+
+model Conversation {
+  id        String   @id @default(uuid())
+  platform  String   // whatsapp, instagram, sms, internal
+  contact   String   // Phone or Username
+  updatedAt DateTime @updatedAt
+  
+  channelId String?  // Optional external ID (e.g. WA ID)
+  
+  messages  Message[]
+}
+
+model Message {
+  id             String   @id @default(uuid())
+  content        String
+  isFromUser     Boolean
+  createdAt      DateTime @default(now())
+  
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id])
+  
+  userId         String?
+  user           User?    @relation(fields: [userId], references: [id])
+}
+
+model BookingLink {
+  id          String   @id @default(uuid())
+  slug        String   @unique
+  doctorId    String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+}
+
+model SupportTicket {
+  id          String   @id @default(uuid())
+  subject     String
+  message     String
+  status      String   @default("open") // open, resolved
+  createdAt   DateTime @default(now())
+  
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+}
+
+// Health Tourism Modules
+
+model Transfer {
+  id          String   @id @default(uuid())
+  pickupTime  DateTime
+  pickupLocation String
+  dropoffLocation String
+  driverName  String?
+  plateNumber String?
+  status      String   @default("scheduled") // scheduled, completed, cancelled
+  
+  patientId   String
+  patient     Patient  @relation(fields: [patientId], references: [id])
+}
+
+model Accommodation {
+  id          String   @id @default(uuid())
+  hotelName   String
+  checkInDate DateTime
+  checkOutDate DateTime
+  roomType    String?
+  status      String   @default("booked") // booked, checked-in, checked-out
+  
+  patientId   String
+  patient     Patient  @relation(fields: [patientId], references: [id])
+}
+
+// Financial Modules
+
+model Invoice {
+  id          String   @id @default(uuid())
+  amount      Float
+  currency    String   @default("TRY")
+  status      String   @default("pending") // pending, paid, cancelled
+  type        String   @default("service") // service, product
+  description String
+  invoiceDate DateTime @default(now())
+  
+  // E-Invoice specifics
+  eInvoiceNumber String? // GIB number e.g. GIB2024...
+  
+  patientId   String
+  patient     Patient  @relation(fields: [patientId], references: [id])
+}
+
+model Expense {
+  id          String   @id @default(uuid())
+  amount      Float
+  category    String   // Rent, Supplies, Marketing
+  description String
+  date        DateTime @default(now())
+}
+
+model Product {
+  id          String   @id @default(uuid())
+  name        String
+  stock       Int
+  price       Float
+  sku         String?
+}
+
+// Visual Records
+
+model PhotoEntry {
+  id          String   @id @default(uuid())
+  beforeUrl   String?
+  afterUrl    String?
+  date        DateTime @default(now())
+  notes       String?
+  
+  patientId   String
+  patient     Patient  @relation(fields: [patientId], references: [id])
+}
+
+// Advanced Operations & Engagement
+
+model CallLog {
+  id          String   @id @default(uuid())
+  callerNumber String
+  direction   String   // inbound, outbound
+  status      String   // missed, answered
+  duration    Int      // seconds
+  timestamp   DateTime @default(now())
+  
+  patientId   String?
+  patient     Patient? @relation(fields: [patientId], references: [id])
+}
+
+model Notification {
+  id          String   @id @default(uuid())
+  title       String
+  message     String
+  type        String   // retention, birthday, appointment
+  isRead      Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  
+  userId      String?  // Targeted staff member
+  user        User?    @relation(fields: [userId], references: [id])
+}
+
+model SurveyResult {
+  id          String   @id @default(uuid())
+  rating      Int
+  feedback    String?
+  createdAt   DateTime @default(now())
+  
+  patientId   String
+  patient     Patient  @relation(fields: [patientId], references: [id])
+}
+
+// Marketing & Campaigns (Real Data Implementation)
+
+model Campaign {
+  id          String   @id @default(uuid())
+  title       String
+  message     String
+  channel     String   // whatsapp, sms, email
+  targetAudience String // all, leads, retention
+  sentCount   Int      @default(0)
+  status      String   @default("completed")
+  createdAt   DateTime @default(now())
+  
+  logs        CampaignLog[]
+}
+
+model CampaignLog {
+  id          String   @id @default(uuid())
+  status      String   // sent, delivered, failed
+  recipient   String
+  timestamp   DateTime @default(now())
+  
+  campaignId  String
+  campaign    Campaign @relation(fields: [campaignId], references: [id])
+}
