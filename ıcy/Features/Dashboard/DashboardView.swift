@@ -63,7 +63,9 @@ struct HomeView: View {
     @State private var callLogs: [CallLog] = []
     @State private var todayAppointments: [Appointment] = []
     @State private var showContent = false
-
+    @State private var showAddAppointment = false
+    @State private var showAddPatient = false
+    @State private var showScanner = false
     
     // Grid: 2 Columns
     let columns = [GridItem(.flexible()), GridItem(.flexible())]
@@ -117,6 +119,11 @@ struct HomeView: View {
                 }
             }
             .navigationBarHidden(true)
+            .sheet(isPresented: $showAddAppointment) { AddAppointmentView() }
+            .sheet(isPresented: $showAddPatient) { AddPatientView() }
+            .alert("Tarayıcı", isPresented: $showScanner) {
+                Button("Tamam", role: .cancel) { }
+            } message: { Text("QR/Barkod tarayıcı özelliği yakında eklenecek.") }
             .task { await loadData() }
             .onAppear {
                 withAnimation(.easeOut(duration: 0.8)) {
@@ -136,7 +143,7 @@ struct HomeView: View {
             stats = try await APIService.shared.fetchStats()
             notifications = try await APIService.shared.fetchNotifications()
             let allApps = try await APIService.shared.fetchAppointments()
-            todayAppointments = allApps.sorted { $0.date < $1.date }
+            todayAppointments = allApps.filter { Calendar.current.isDateInToday($0.date) }
         } catch { print("Dashboard Error: \(error)") }
     }
     
@@ -181,10 +188,33 @@ struct HomeView: View {
     // Clean, Text-less action buttons for minimalism
     private var actionRow: some View {
         HStack(spacing: 20) {
-            QuickActionIcon(icon: "calendar.badge.plus", color: .neoPrimary)
-            QuickActionIcon(icon: "person.badge.plus", color: .neoSecondary)
-            QuickActionIcon(icon: "doc.text.viewfinder", color: .orange)
-            QuickActionIcon(icon: "chart.pie.fill", color: .purple)
+            QuickActionIcon(icon: "calendar.badge.plus", color: .neoPrimary) {
+                showAddAppointment = true
+            }
+            QuickActionIcon(icon: "person.badge.plus", color: .neoSecondary) {
+                showAddPatient = true
+            }
+            QuickActionIcon(icon: "doc.text.viewfinder", color: .orange) {
+                showScanner = true
+            }
+            // Admin only report button
+            if (apiService.currentUser?.role ?? .staff) == .admin {
+                NavigationLink(destination: AnalyticsView()) {
+                   ZStack {
+                        Circle()
+                            .fill(Color.white)
+                            .shadow(color: Color.black.opacity(0.05), radius: 5, x: 0, y: 5)
+                        
+                        Image(systemName: "chart.pie.fill")
+                            .font(.system(size: 20))
+                            .foregroundColor(.purple)
+                    }
+                    .frame(width: 60, height: 60)
+                }
+            } else {
+                 // Placeholder for non-admins to keep alignment or remove
+                 QuickActionIcon(icon: "chart.pie.fill", color: .purple) { }
+            }
         }
         .padding(.horizontal, 24)
     }
@@ -272,9 +302,10 @@ struct HomeView: View {
 struct QuickActionIcon: View {
     let icon: String
     let color: Color
+    var action: () -> Void = {}
     
     var body: some View {
-        Button(action: {}) {
+        Button(action: action) {
             ZStack {
                 Circle()
                     .fill(Color.white)

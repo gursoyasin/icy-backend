@@ -84,7 +84,7 @@ exports.getAnalytics = async (req, res, next) => {
             const end = new Date(d.setHours(23, 59, 59, 999));
 
             const dailyInvoices = await prisma.invoice.aggregate({
-                where: { createdAt: { gte: start, lte: end } },
+                where: { invoiceDate: { gte: start, lte: end } },
                 _sum: { amount: true }
             });
 
@@ -109,7 +109,7 @@ exports.getAnalytics = async (req, res, next) => {
         // 3. Efficiency & Graft Stats
         const totalLeads = await prisma.patient.count({ where: { status: 'lead' } });
         const totalPatients = await prisma.patient.count();
-        const conversionRate = totalPatients > 0 ? ((totalPatients - totalLeads) / totalPatients * 100).toFixed(1) : 0;
+        const conversionRate = totalPatients > 0 ? parseFloat(((totalPatients - totalLeads) / totalPatients * 100).toFixed(1)) : 0.0;
 
         // 4. No-Show Rate
         const totalPastAppointments = await prisma.appointment.count({
@@ -118,7 +118,7 @@ exports.getAnalytics = async (req, res, next) => {
         const noShowCount = await prisma.appointment.count({
             where: { status: 'no-show', date: { lte: new Date() } }
         });
-        const noShowRate = totalPastAppointments > 0 ? ((noShowCount / totalPastAppointments) * 100).toFixed(1) : 0;
+        const noShowRate = totalPastAppointments > 0 ? parseFloat(((noShowCount / totalPastAppointments) * 100).toFixed(1)) : 0.0;
 
         // 5. Doctor Workload (Appointments per Doctor)
         const doctorWorkloadGroup = await prisma.appointment.groupBy({

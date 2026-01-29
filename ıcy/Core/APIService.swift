@@ -125,8 +125,13 @@ class APIService: ObservableObject {
     
     // MARK: - Appointments
     func fetchAppointments() async throws -> [Appointment] {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSSZ"
+        formatter.calendar = Calendar(identifier: .iso8601)
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        
         let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
+        decoder.dateDecodingStrategy = .formatted(formatter)
         return try await fetch(endpoint: "/appointments", decoder: decoder)
     }
     
