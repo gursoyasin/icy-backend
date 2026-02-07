@@ -179,7 +179,10 @@ exports.getMe = async (req, res) => {
 exports.getDoctors = async (req, res, next) => {
     try {
         const doctors = await prisma.user.findMany({
-            where: { role: { in: ['admin', 'doctor'] } },
+            where: {
+                role: { in: ['admin', 'doctor'] },
+                clinicId: req.user.clinicId // Multi-tenancy filter
+            },
             select: { id: true, name: true, role: true, email: true }
         });
         res.json(doctors);
@@ -193,7 +196,10 @@ exports.listUsers = async (req, res, next) => {
         if (req.user.role !== 'admin') return res.status(403).json({ error: "Unauthorized" });
 
         const users = await prisma.user.findMany({
-            where: { id: { not: req.user.id } }, // Don't list self
+            where: {
+                id: { not: req.user.id }, // Don't list self
+                clinicId: req.user.clinicId // Multi-tenancy filter
+            },
             select: { id: true, name: true, role: true, email: true, createdAt: true }
         });
         res.json(users);
