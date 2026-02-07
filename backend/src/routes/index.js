@@ -22,6 +22,7 @@ router.use('/', commRoutes);
 router.use('/', faRoutes);
 router.use('/', featRoutes);
 router.use('/campaigns', campaignRoutes);
+router.use('/social', require('./socialRoutes'));
 router.use('/', require('./reportsRoutes'));
 
 // Setup Route (Protected by JWT_SECRET)

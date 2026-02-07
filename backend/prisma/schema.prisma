@@ -65,10 +65,13 @@ model User {
   clinic    Clinic   @relation(fields: [clinicId], references: [id], onDelete: Cascade)
   branch    Branch?  @relation(fields: [branchId], references: [id])
   
+  allowedIPs String[] // For IP Restriction
+  lastLoginIP String? // For Audit
+  
   appointments Appointment[]
   messages     Message[]
   notifications Notification[]
-  tickets      SupportTicket[]
+   tickets      SupportTicket[]
   performances StaffPerformance[]
   
   twoFactorEnabled Boolean @default(false)
@@ -161,6 +164,7 @@ model Conversation {
   updatedAt DateTime @updatedAt
   
   channelId String?  // Optional external ID (e.g. WA ID)
+  metadata  Json?    // For Social DM details (senderID, pageID)
   
   messages  Message[]
 }
