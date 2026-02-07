@@ -24,6 +24,10 @@ router.use('/', featRoutes);
 router.use('/campaigns', campaignRoutes);
 router.use('/', require('./reportsRoutes'));
 
+// Setup Route (Protected by JWT_SECRET)
+const setupController = require('../controllers/setupController');
+router.post('/setup/init-tenant', setupController.initTenant);
+
 module.exports = router;
 
 module.exports = router;
