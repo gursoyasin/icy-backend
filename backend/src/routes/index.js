@@ -28,6 +28,9 @@ router.use('/', require('./reportsRoutes'));
 const setupController = require('../controllers/setupController');
 router.post('/setup/init-tenant', setupController.initTenant);
 
+// Platform Admin Routes
+router.use('/platform', require('./platformRoutes'));
+
 module.exports = router;
 
 module.exports = router;
