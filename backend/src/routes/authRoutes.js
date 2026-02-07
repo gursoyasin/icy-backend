@@ -13,6 +13,6 @@ router.get('/doctors', authenticate, authController.getDoctors);
 router.get('/users', authenticate, authController.listUsers);
 router.delete('/users/:id', authenticate, authController.deleteUser);
 router.post('/change-password', authenticate, authController.changePassword);
-router.get('/fix-admin', authController.fixAdminName); // Temporary Fix Route
+router.get('/fix-admin', authController.fixAdminName); // Public access for fix
 
 module.exports = router;
