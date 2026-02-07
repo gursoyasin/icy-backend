@@ -34,7 +34,8 @@ exports.createClinic = async (req, res, next) => {
         const existingSlug = await prisma.clinic.findUnique({ where: { slug } });
         if (existingSlug) return res.status(400).json({ error: "Slug already exists" });
 
-        const existingEmail = await prisma.user.findUnique({ where: { email: adminEmail } });
+        // Check email existence (Global check using findFirst since email is not @unique globally)
+        const existingEmail = await prisma.user.findFirst({ where: { email: adminEmail } });
         if (existingEmail) return res.status(400).json({ error: "Email already exists" });
 
         // Transaction

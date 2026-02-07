@@ -70,11 +70,24 @@ async function main() {
             console.log("👤 Admin kullanıcısı ayarlanıyor...");
 
             // Check if user exists to decide on log message
-            const existingUser = await tx.user.findUnique({ where: { email } });
+            // We must use composite key for get/upsert, OR findFirst for logic
+            const existingUser = await tx.user.findUnique({
+                where: {
+                    clinicId_email: {
+                        clinicId: clinic.id,
+                        email: email
+                    }
+                }
+            });
             const action = existingUser ? "GÜNCELLENDİ" : "OLUŞTURULDU";
 
             const user = await tx.user.upsert({
-                where: { email },
+                where: {
+                    clinicId_email: {
+                        clinicId: clinic.id,
+                        email: email
+                    }
+                },
                 update: {
                     name: "Süper Yönetici",
                     password: hashedPassword,
