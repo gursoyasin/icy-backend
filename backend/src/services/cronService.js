@@ -7,25 +7,46 @@ cron.schedule('0 9 * * *', async () => {
     console.log('[Cron] Running Daily Jobs...');
     await checkBirthdays();
     await checkPostOpRetention();
+    await checkReminders();
 });
 
 async function checkBirthdays() {
-    // Mock logic: In real app, Patient model needs 'birthDate'
-    // Assuming we added it or using a tag.
     console.log('[Cron] Checking birthdays...');
-    // const today = new Date();
-    // const patients = await prisma.patient.findMany({ where: { birthDate: ... } });
-    // for (const p of patients) { messaging.sendMessage('sms', p.phoneNumber, "Mutlu Yıllar!", "birthday"); }
+    // Mock logic: In real app, Patient model needs 'birthDate'
 }
 
 async function checkPostOpRetention() {
     console.log('[Cron] Checking post-op retention...');
-    // Find appointments completed 1 day ago
-    const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
+    // Find appointments completed 30 days ago and suggest follow-up (PRP etc.)
+}
 
-    // In a real query we'd filter by status='completed' and date=yesterday
-    // For V1, just logging the check.
+async function checkReminders() {
+    console.log('[Cron] Checking appointment reminders...');
+    const ivrService = require('./ivrService');
+    const messaging = require('./messaging');
+
+    // 1. Find appointments in ~24 hours
+    const startWindow = new Date(Date.now() + 23 * 60 * 60 * 1000); // 23 hours from now
+    const endWindow = new Date(Date.now() + 25 * 60 * 60 * 1000);   // 25 hours from now
+
+    // In real Prisma:
+    /*
+    const appointments = await prisma.appointment.findMany({
+        where: {
+            date: { gte: startWindow, lte: endWindow },
+            status: 'scheduled'
+        },
+        include: { patient: true }
+    });
+    
+    for (const app of appointments) {
+        // Send WhatsApp
+        await messaging.sendMessage('whatsapp', app.patient.phoneNumber, `Randevu Hatırlatma: Yarın saat ${app.date} randevunuz var.`);
+        
+        // Trigger IVR Call if not confirmed
+        await ivrService.makeConfirmationCall(app);
+    }
+    */
 }
 
 module.exports = cron;
