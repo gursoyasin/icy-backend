@@ -19,7 +19,8 @@ exports.getDailySummary = async (req, res, next) => {
         report += `✅ Toplam Randevu: ${total}\n`;
         report += `👨‍⚕️ Tamamlanan: ${completed}\n`;
         report += `❌ Gelmeyen (No-Show): ${noshows}\n`;
-        report += `💰 Tahmini Ciro: ${completed * 2500} TL\n\n`; // Mock avg revenue
+        // Estimated Revenue (Avg 2500 TL per appointment)
+        report += `💰 Tahmini Ciro: ${(completed * 2500).toLocaleString('tr-TR')} TL\n\n`;
 
         report += `*Doktor Bazlı:*\n`;
         const doctorStats = {};

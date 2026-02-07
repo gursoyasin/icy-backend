@@ -57,11 +57,7 @@ struct DashboardView: View {
 // MARK: - Redesigned Pro Dashboard
 // MARK: - Ultra Premium Dashboard
 struct HomeView: View {
-    @ObservedObject var apiService = APIService.shared
-    @State private var stats: DashboardStats = .empty
-    @State private var notifications: [AppNotification] = []
-    @State private var callLogs: [CallLog] = []
-    @State private var todayAppointments: [Appointment] = []
+    @StateObject private var viewModel = HomeViewModel()
     @State private var showContent = false
     @State private var showAddAppointment = false
     @State private var showAddPatient = false
@@ -105,14 +101,14 @@ struct HomeView: View {
                         Spacer()
                         NavigationLink(destination: NeoAssistantView()) {
                             Image(systemName: "sparkles")
-                                .font(.system(size: 24, weight: .semibold))
-                                .foregroundColor(.white)
-                                .frame(width: 60, height: 60)
-                                .background(
-                                    Circle()
-                                        .fill(LinearGradient(colors: [.neoPrimary, .purple], startPoint: .topLeading, endPoint: .bottomTrailing))
-                                        .shadow(color: .purple.opacity(0.4), radius: 10, y: 5)
-                                )
+                            .font(.system(size: 24, weight: .semibold))
+                            .foregroundColor(.white)
+                            .frame(width: 60, height: 60)
+                            .background(
+                                Circle()
+                                    .fill(LinearGradient(colors: [.neoPrimary, .purple], startPoint: .topLeading, endPoint: .bottomTrailing))
+                                    .shadow(color: .purple.opacity(0.4), radius: 10, y: 5)
+                            )
                         }
                         .padding()
                     }
@@ -124,27 +120,14 @@ struct HomeView: View {
             .alert("Tarayıcı", isPresented: $showScanner) {
                 Button("Tamam", role: .cancel) { }
             } message: { Text("QR/Barkod tarayıcı özelliği yakında eklenecek.") }
-            .task { await loadData() }
+            .task { await viewModel.loadData() }
             .onAppear {
                 withAnimation(.easeOut(duration: 0.8)) {
                     showContent = true
                 }
-                Task { await loadData() }
+                // Pre-load if needed, but .task handles it
             }
         }
-    }
-    
-    private func loadData() async {
-        do {
-            if APIService.shared.getCurrentUser() == nil {
-                let user = try await APIService.shared.fetchProfile()
-                APIService.shared.updateCurrentUser(user)
-            }
-            stats = try await APIService.shared.fetchStats()
-            notifications = try await APIService.shared.fetchNotifications()
-            let allApps = try await APIService.shared.fetchAppointments()
-            todayAppointments = allApps.filter { Calendar.current.isDateInToday($0.date) }
-        } catch { print("Dashboard Error: \(error)") }
     }
     
     // MARK: - Sections
@@ -158,11 +141,11 @@ struct HomeView: View {
                     .foregroundColor(.gray)
                     .tracking(2)
                 
-                Text(greetingMessage)
+                Text(viewModel.greetingMessage)
                     .font(.system(size: 32, weight: .bold, design: .rounded))
                     .foregroundColor(.neoTextPrimary)
                 
-                Text(apiService.currentUser?.branch?.name ?? "Merkez Klinik")
+                Text(viewModel.currentUser?.branch?.name ?? "Merkez Klinik")
                     .font(.subheadline)
                     .foregroundColor(.neoSecondary)
             }
@@ -175,7 +158,7 @@ struct HomeView: View {
                     .stroke(LinearGradient(colors: [.neoPrimary, .neoSecondary], startPoint: .top, endPoint: .bottom), lineWidth: 2)
                     .frame(width: 54, height: 54)
                 
-                Text(String(apiService.currentUser?.name.prefix(1) ?? "U"))
+                Text(String(viewModel.currentUser?.name.prefix(1) ?? "U"))
                     .font(.title2)
                     .fontWeight(.bold)
                     .foregroundColor(.neoPrimary)
@@ -198,7 +181,7 @@ struct HomeView: View {
                 showScanner = true
             }
             // Admin only report button
-            if (apiService.currentUser?.role ?? .staff) == .admin {
+            if (viewModel.currentUser?.role ?? .staff) == .admin {
                 NavigationLink(destination: AnalyticsView()) {
                    ZStack {
                         Circle()
@@ -223,7 +206,7 @@ struct HomeView: View {
         LazyVGrid(columns: columns, spacing: 20) {
             PremiumStatCard(
                 title: "Randevular",
-                value: "\(stats.upcomingAppointments)",
+                value: "\(viewModel.stats.upcomingAppointments)",
                 subtitle: "Bekleyen",
                 icon: "calendar",
                 color: .neoPrimary
@@ -231,16 +214,16 @@ struct HomeView: View {
             
             PremiumStatCard(
                 title: "Hastalar",
-                value: "\(stats.totalPatients)",
+                value: "\(viewModel.stats.totalPatients)",
                 subtitle: "Toplam Kayıt",
                 icon: "person.2.fill",
                 color: .neoSecondary
             )
             
-            if (apiService.currentUser?.role ?? .staff) == .admin {
+            if (viewModel.currentUser?.role ?? .staff) == .admin {
                 PremiumStatCard(
                     title: "Gelir",
-                    value: "₺\(Int(stats.monthlyRevenue))",
+                    value: "₺\(Int(viewModel.stats.monthlyRevenue))",
                     subtitle: "Bu Ay",
                     icon: "creditcard.fill",
                     color: .neoSuccess
@@ -248,7 +231,7 @@ struct HomeView: View {
                 
                 PremiumStatCard(
                     title: "Büyüme",
-                    value: "%\(stats.trends?.revenue ?? 0)",
+                    value: "%\(viewModel.stats.trends?.revenue ?? 0)",
                     subtitle: "Geçen Aya Göre",
                     icon: "arrow.up.right",
                     color: .green
@@ -273,13 +256,13 @@ struct HomeView: View {
             
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 16) {
-                    if todayAppointments.isEmpty {
+                    if viewModel.todayAppointments.isEmpty {
                         Text("Bugün planlanmış randevu yok.")
                             .font(.subheadline)
                             .foregroundColor(.gray)
                             .padding(.leading, 24)
                     } else {
-                        ForEach(todayAppointments.filter { Calendar.current.isDateInToday($0.date) }) { app in
+                        ForEach(viewModel.todayAppointments) { app in
                             AgendaCard(appointment: app)
                         }
                     }
@@ -289,12 +272,7 @@ struct HomeView: View {
         }
     }
     
-    private var greetingMessage: String {
-        let hour = Calendar.current.component(.hour, from: Date())
-        if hour < 12 { return "Günaydın" }
-        if hour < 18 { return "Tünaydın" }
-        return "İyi Akşamlar"
-    }
+
 }
 
 // MARK: - Premium Components

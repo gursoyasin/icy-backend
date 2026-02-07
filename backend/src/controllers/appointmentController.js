@@ -76,6 +76,8 @@ exports.createAppointment = async (req, res, next) => {
 
         // 2. AUTOMATION FIRE: T-24h Reminder Workflow
         const automation = require('../services/automation');
+        const messaging = require('../services/messaging');
+
         // Fire and Forget
         automation.triggerWorkflow('appointment_created', {
             appointmentId: appointment.id,
@@ -84,6 +86,13 @@ exports.createAppointment = async (req, res, next) => {
             date: appointment.date,
             doctorName: appointment.doctor.name
         });
+
+        // Send Confirmation SMS/WhatsApp
+        if (appointment.patient.phoneNumber) {
+            const message = `Sn. ${appointment.patient.fullName}, ${appointmentDate.toLocaleString('tr-TR')} tarihli randevunuz oluşturulmuştur.`;
+            // Defaulting to SMS for now, could be dynamic
+            messaging.sendMessage('sms', appointment.patient.phoneNumber, message);
+        }
 
         // PRD: Automation Trigger "Appointment Created"
         // (Redundant block removed)
@@ -106,6 +115,8 @@ exports.updateAppointmentStatus = async (req, res, next) => {
         // PRD: Automation Trigger for Status Change
         if (['arrived', 'no-show', 'completed'].includes(status)) {
             const automation = require('../services/automation');
+            const messaging = require('../services/messaging');
+
             automation.triggerWorkflow('appointment_status_changed', {
                 event: status,
                 appointmentId: appointment.id,
@@ -113,6 +124,11 @@ exports.updateAppointmentStatus = async (req, res, next) => {
                 doctorName: appointment.doctor.name,
                 patientPhone: appointment.patient.phoneNumber
             });
+
+            if (status === 'completed' && appointment.patient.phoneNumber) {
+                // Example: Post-op survey
+                messaging.sendMessage('whatsapp', appointment.patient.phoneNumber, `Sn. ${appointment.patient.fullName}, işleminiz tamamlanmıştır. Geçmiş olsun dileklerimizle.`);
+            }
         }
 
     } catch (e) { next(e); }

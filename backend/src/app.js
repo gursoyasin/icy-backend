@@ -4,6 +4,7 @@ const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const path = require('path');
 const logger = require('./utils/logger');
+require('./services/cronService'); // Init Cron Jobs
 // const appRoutes = require('./routes/index'); // Will create this next
 
 const app = express();

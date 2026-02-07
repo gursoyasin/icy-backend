@@ -1,0 +1,7 @@
+{
+    "welcome": "Hoşgeldiniz",
+    "login_success": "Giriş başarılı.",
+    "invalid_credentials": "Hatalı kullanıcı adı veya şifre.",
+    "appointment_confirmed": "Randevunuz onaylandı.",
+    "invoice_generated": "Faturanız oluşturuldu."
+}

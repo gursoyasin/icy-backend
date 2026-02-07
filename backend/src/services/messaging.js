@@ -20,11 +20,11 @@ exports.sendMessage = async (channel, recipient, content, userId = null, convers
         console.log(`[Messaging] Sending ${channel} to ${recipient}: ${content}`);
 
         if (channel === 'whatsapp') {
-            // await sendWhatsApp(recipient, content);
-            status = 'sent'; // Simulator
+            await sendWhatsApp(recipient, content);
+            status = 'sent';
         } else if (channel === 'sms') {
-            // await sendSMS(recipient, content);
-            status = 'sent'; // Simulator
+            await sendSMS(recipient, content);
+            status = 'sent';
         } else {
             throw new Error(`Unsupported channel: ${channel}`);
         }
@@ -64,18 +64,66 @@ exports.sendMessage = async (channel, recipient, content, userId = null, convers
 // -- Private Adapters --
 
 async function sendWhatsApp(to, text) {
-    // Implementation for Meta Cloud API
-    /*
-    await axios.post(WHATSAPP_API_URL, {
+    // Meta Cloud API Implementation
+    const url = process.env.WHATSAPP_API_URL;
+    const token = process.env.WA_TOKEN;
+
+    if (!url || !token) {
+        console.warn("[Messaging] WhatsApp credentials missing. Skipping.");
+        throw new Error("WhatsApp credentials missing");
+    }
+
+    const response = await axios.post(url, {
         messaging_product: "whatsapp",
         to: to,
+        type: "text",
         text: { body: text }
-    }, { headers: { Authorization: `Bearer ${process.env.WA_TOKEN}` } });
-    */
-    return true;
+    }, {
+        headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+        }
+    });
+
+    return response.data;
 }
 
 async function sendSMS(to, text) {
-    // Implementation for NetGSM or Twilio
-    return true;
+    // NetGSM XML API Implementation
+    const url = process.env.SMS_API_URL || 'https://api.netgsm.com.tr/sms/send/xml';
+    const user = process.env.NETGSM_USER;
+    const pass = process.env.NETGSM_PASS;
+    const header = process.env.NETGSM_HEADER;
+
+    if (!user || !pass || !header) {
+        console.warn("[Messaging] NetGSM credentials missing. Skipping.");
+        throw new Error("NetGSM credentials missing");
+    }
+
+    const xmlData = `<?xml version="1.0"?>
+    <mainbody>
+        <header>
+            <company dil="TR">Netgsm</company>
+            <usercode>${user}</usercode>
+            <password>${pass}</password>
+            <type>1:n</type>
+            <msgheader>${header}</msgheader>
+        </header>
+        <body>
+            <msg><![CDATA[${text}]]></msg>
+            <no>${to}</no>
+        </body>
+    </mainbody>`;
+
+    const response = await axios.post(url, xmlData, {
+        headers: { 'Content-Type': 'text/xml' }
+    });
+
+    // NetGSM returns 00, 01, 02 etc. as plain text or small XML
+    // Checks for successful response code (starts with 00 usually means success id)
+    if (response.data && response.data.toString().startsWith("0")) {
+        return response.data;
+    } else {
+        throw new Error(`NetGSM Error: ${response.data}`);
+    }
 }

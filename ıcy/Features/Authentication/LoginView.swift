@@ -10,6 +10,11 @@ struct LoginView: View {
     @State private var showError = false
     @State private var errorMessage = ""
     
+    // 2FA
+    @State private var show2FAInput = false
+    @State private var twoFACode = ""
+    @State private var userIdFor2FA: String?
+    
     var body: some View {
         ZStack {
             Color.neoBackground.edgesIgnoringSafeArea(.all)
@@ -48,26 +53,42 @@ struct LoginView: View {
                     }
                     
                     VStack(alignment: .leading, spacing: 8) {
-                        Text("Şifre")
+                        Text(show2FAInput ? "Doğrulama Kodu" : "Şifre")
                             .font(.neoCaption)
                             .foregroundColor(.neoTextSecondary)
-                        SecureField("********", text: $password)
-                            .padding()
-                            .background(Color.white)
-                            .cornerRadius(8)
-                            .shadow(color: Color.black.opacity(0.05), radius: 2, x: 0, y: 1)
+                        
+                        if show2FAInput {
+                            TextField("123456", text: $twoFACode)
+                                .padding()
+                                .background(Color.white)
+                                .cornerRadius(8)
+                                .keyboardType(.numberPad)
+                                .shadow(color: Color.black.opacity(0.05), radius: 2, x: 0, y: 1)
+                        } else {
+                            SecureField("********", text: $password)
+                                .padding()
+                                .background(Color.white)
+                                .cornerRadius(8)
+                                .shadow(color: Color.black.opacity(0.05), radius: 2, x: 0, y: 1)
+                        }
                     }
                 }
                 .padding(.horizontal)
                 
                 // Login Button
-                Button(action: performLogin) {
+                Button(action: {
+                    if show2FAInput {
+                        performVerify2FA()
+                    } else {
+                        performLogin()
+                    }
+                }) {
                     HStack {
                         if isLoading {
                             ProgressView()
                                 .progressViewStyle(CircularProgressViewStyle(tint: .white))
                         } else {
-                            Text("Giriş Yap")
+                            Text(show2FAInput ? "Doğrula" : "Giriş Yap")
                                 .fontWeight(.bold)
                             Image(systemName: "arrow.right")
                         }
@@ -95,8 +116,8 @@ struct LoginView: View {
         }
         .alert(isPresented: $showError) {
             Alert(
-                title: Text("Giriş Başarısız"),
-                message: Text("Sunucuya bağlanılamadı veya bilgiler hatalı."),
+                title: Text("Hata"),
+                message: Text(errorMessage),
                 dismissButton: .default(Text("Tamam"))
             )
         }
@@ -106,19 +127,64 @@ struct LoginView: View {
         isLoading = true
         Task {
             do {
-                let (_, _) = try await APIService.shared.login(email: email, password: password)
+                let url = URL(string: "\(AppConfig.baseURL)/auth/login")!
+                var request = URLRequest(url: url)
+                request.httpMethod = "POST"
+                request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+                let body: [String: String] = ["email": email, "password": password]
+                request.httpBody = try JSONSerialization.data(withJSONObject: body)
+                
+                let (data, _) = try await URLSession.shared.data(for: request)
+                let response = try JSONDecoder().decode(LoginResponse.self, from: data)
+                
+                isLoading = false
+                
+                if response.require2fa == true {
+                    self.userIdFor2FA = response.userId
+                    withAnimation {
+                        self.show2FAInput = true
+                    }
+                } else if let token = response.token {
+                    APIService.shared.token = token // Manually set token since we bypassed shared login
+                    withAnimation {
+                        isLoggedIn = true
+                    }
+                } else {
+                     throw URLError(.badServerResponse)
+                }
+            } catch {
+                isLoading = false
+                errorMessage = "Giriş yapılamadı. Bilgilerinizi kontrol ediniz."
+                showError = true
+            }
+        }
+    }
+    
+    func performVerify2FA() {
+        guard let userId = userIdFor2FA else { return }
+        isLoading = true
+        Task {
+            do {
+                let (_, _) = try await APIService.shared.verify2FA(userId: userId, code: twoFACode)
                 isLoading = false
                 withAnimation {
                     isLoggedIn = true
                 }
             } catch {
                 isLoading = false
-                errorMessage = error.localizedDescription
+                errorMessage = "Hatalı kod."
                 showError = true
-                print("Login error: \(error)")
             }
         }
     }
+}
+
+// Helper Model for custom login decoding within View
+struct LoginResponse: Codable {
+    let token: String?
+    let require2fa: Bool?
+    let userId: String?
+    let message: String?
 }
 
 struct LoginView_Previews: PreviewProvider {

@@ -1,88 +1,32 @@
 const prisma = require('../config/prisma');
+const iysService = require('../services/iysService');
 
-exports.getConversations = async (req, res, next) => {
+exports.optOut = async (req, res, next) => {
     try {
-        const conversations = await prisma.conversation.findMany({
-            include: { messages: { take: 1, orderBy: { createdAt: 'desc' } } }
-        });
-        res.json(conversations);
-    } catch (e) { next(e); }
-};
+        const { contact, channel, reason } = req.body;
 
-exports.getMessages = async (req, res, next) => {
-    try {
-        const messages = await prisma.message.findMany({
-            where: { conversationId: req.params.id },
-            orderBy: { createdAt: 'asc' },
-            include: { user: true }
-        });
-        res.json(messages);
-    } catch (e) { next(e); }
-};
-
-exports.sendMessage = async (req, res, next) => {
-    try {
-        const { conversationId, content } = req.body;
-        const message = await prisma.message.create({
-            data: {
-                conversationId,
-                content,
-                userId: req.user.id,
-                isFromUser: true
-            }
-        });
-
-        const io = req.app.get('io');
-        if (io) io.to(conversationId).emit('receive_message', message);
-
-        res.json(message);
-    } catch (e) { next(e); }
-};
-
-exports.webhook = async (req, res, next) => {
-    const { platform } = req.params;
-    const payload = req.body;
-
-    // Logger shouldn't be here directly but we can log
-    console.log(`Received ${platform} webhook:`, payload);
-
-    try {
-        const senderContact = payload.from || payload.sender || "+905550000000";
-        const content = payload.message || payload.text || "Media received";
-        const channelId = payload.channelId || "UNKNOWN_CHANNEL";
-
-        let conv = await prisma.conversation.findFirst({
-            where: { contact: senderContact, platform }
-        });
-
-        if (!conv) {
-            conv = await prisma.conversation.create({
-                data: { platform, contact: senderContact, channelId }
-            });
+        if (!contact || !channel) {
+            return res.status(400).json({ error: "Contact and channel required" });
         }
 
-        const msg = await prisma.message.create({
+        // 1. Create Local Opt-Out Record
+        await prisma.optOut.create({
             data: {
-                content,
-                isFromUser: false,
-                conversationId: conv.id
+                contact,
+                channel: channel.toUpperCase(), // SMS, EMAIL, ALL
+                reason
             }
         });
 
-        const io = req.app.get('io');
-        if (io) io.emit('new_message', { conversationId: conv.id, message: msg });
+        // 2. Sync with IYS (Remove Consent)
+        await iysService.removeConsent(contact, channel.toUpperCase(), reason);
 
-        res.json({ status: "processed" });
-    } catch (e) { next(e); }
-};
-
-exports.getNotifications = async (req, res, next) => {
-    // Return empty array for now or fetch from DB if Notification model exists
-    // To prevent crash, we return empty list valid JSON.
-    res.json([]);
-};
-
-exports.getCalls = async (req, res, next) => {
-    // Return empty array for now
-    res.json([]);
+        res.json({ success: true, message: "Unsubscribed successfully" });
+    } catch (e) {
+        // Handle unique constraint violation (already opted out)
+        if (e.code === 'P2002') {
+            return res.json({ success: true, message: "Already unsubscribed" });
+        }
+        next(e);
+    }
 };

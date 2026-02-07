@@ -11,7 +11,8 @@ enum APIError: Error {
 class APIService: ObservableObject {
     static let shared = APIService()
     // Production URL (Render.com)
-    private let baseURL = "https://icy-backend-jsju.onrender.com/api"
+    // Production URL (Render.com)
+    private let baseURL = AppConfig.baseURL
     
     @Published var authToken: String? {
         didSet {
@@ -46,7 +47,7 @@ class APIService: ObservableObject {
             throw APIError.serverError("Invalid credentials")
         }
         
-        let decodedResponse = try JSONDecoder().decode(AuthResponse.self, from: data)
+        let decodedResponse = try AppConfig.jsonDecoder.decode(AuthResponse.self, from: data)
         self.authToken = decodedResponse.token
         self.currentUser = decodedResponse.user
         return (decodedResponse.user, decodedResponse.token)
@@ -69,7 +70,7 @@ class APIService: ObservableObject {
             throw APIError.serverError("Failed to register user")
         }
         
-        return try JSONDecoder().decode(User.self, from: data)
+        return try AppConfig.jsonDecoder.decode(User.self, from: data)
     }
     
     func fetchStaff() async throws -> [User] {
@@ -115,24 +116,13 @@ class APIService: ObservableObject {
     
     // MARK: - Patients
     func fetchPatients() async throws -> [Patient] {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSSZ"
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .formatted(formatter)
-        return try await fetch(endpoint: "/patients", decoder: decoder)
+        // Uses standard decoder defined in AppConfig (Date format matches)
+        return try await fetch(endpoint: "/patients", decoder: AppConfig.jsonDecoder)
     }
     
     // MARK: - Appointments
     func fetchAppointments() async throws -> [Appointment] {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSSZ"
-        formatter.calendar = Calendar(identifier: .iso8601)
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .formatted(formatter)
-        return try await fetch(endpoint: "/appointments", decoder: decoder)
+        return try await fetch(endpoint: "/appointments", decoder: AppConfig.jsonDecoder)
     }
     
     // MARK: - Messaging
@@ -141,12 +131,7 @@ class APIService: ObservableObject {
     }
     
     func fetchMessages(conversationId: String) async throws -> [Message] {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSSZ"
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .formatted(formatter)
-        
-        return try await fetch(endpoint: "/conversations/\(conversationId)/messages", decoder: decoder)
+        return try await fetch(endpoint: "/conversations/\(conversationId)/messages", decoder: AppConfig.jsonDecoder)
     }
     
     // Using a simple socket.io emit event simulation via REST for this phase or just POST
@@ -156,6 +141,28 @@ class APIService: ObservableObject {
     // I should probably add a REST endpoint for sending messages to support polling/REST clients.
     // Let's assume I will add it to backend in a sec.
     
+    func verify2FA(userId: String, code: String) async throws -> (User, String) {
+        guard let url = URL(string: "\(baseURL)/auth/verify-2fa") else { throw APIError.invalidURL }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        
+        let body = ["userId": userId, "code": code]
+        request.httpBody = try JSONSerialization.data(withJSONObject: body)
+        
+        let (data, response) = try await URLSession.shared.data(for: request)
+        
+        guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
+            throw APIError.serverError("Verification failed")
+        }
+        
+        let decodedResponse = try AppConfig.jsonDecoder.decode(AuthResponse.self, from: data)
+        self.authToken = decodedResponse.token
+        self.currentUser = decodedResponse.user
+        return (decodedResponse.user, decodedResponse.token)
+    }
+
     func sendMessage(conversationId: String, content: String) async throws -> Message {
         guard let url = URL(string: "\(baseURL)/messages") else { throw APIError.invalidURL }
         
@@ -175,35 +182,21 @@ class APIService: ObservableObject {
             throw APIError.serverError("Failed to send message")
         }
         
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
-        return try decoder.decode(Message.self, from: data)
+        return try AppConfig.jsonDecoder.decode(Message.self, from: data)
     }
 
     // MARK: - Health Tourism
     func fetchTransfers(patientId: String) async throws -> [Transfer] {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSSZ"
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .formatted(formatter)
-        return try await fetch(endpoint: "/patients/\(patientId)/transfers", decoder: decoder)
+        return try await fetch(endpoint: "/patients/\(patientId)/transfers", decoder: AppConfig.jsonDecoder)
     }
     
     func fetchAccommodations(patientId: String) async throws -> [Accommodation] {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSSZ"
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .formatted(formatter)
-        return try await fetch(endpoint: "/patients/\(patientId)/accommodations", decoder: decoder)
+        return try await fetch(endpoint: "/patients/\(patientId)/accommodations", decoder: AppConfig.jsonDecoder)
     }
 
     // MARK: - Finance
     func fetchInvoices(patientId: String) async throws -> [Invoice] {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSSZ"
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .formatted(formatter)
-        return try await fetch(endpoint: "/patients/\(patientId)/invoices", decoder: decoder)
+        return try await fetch(endpoint: "/patients/\(patientId)/invoices", decoder: AppConfig.jsonDecoder)
     }
     
     func generateInvoice(patientId: String, amount: Double, description: String) async throws -> Invoice {
@@ -231,20 +224,12 @@ class APIService: ObservableObject {
         }
         
         // Custom decoder for response
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSSZ"
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .formatted(formatter)
-        return try decoder.decode(Invoice.self, from: data)
+        return try AppConfig.jsonDecoder.decode(Invoice.self, from: data)
     }
 
     // MARK: - Visual Records
     func fetchPhotos(patientId: String) async throws -> [PhotoEntry] {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSSZ"
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .formatted(formatter)
-        return try await fetch(endpoint: "/patients/\(patientId)/photos", decoder: decoder)
+        return try await fetch(endpoint: "/patients/\(patientId)/photos", decoder: AppConfig.jsonDecoder)
     }
     
     func uploadPhoto(patientId: String, type: String, imageBase64: String) async throws -> PhotoEntry {
@@ -264,11 +249,7 @@ class APIService: ObservableObject {
         }
         
         // Custom decoder for response
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSSZ"
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .formatted(formatter)
-        return try decoder.decode(PhotoEntry.self, from: data)
+        return try AppConfig.jsonDecoder.decode(PhotoEntry.self, from: data)
     }
     
     func createTransfer(patientId: String, pickupTime: Date, pickupLocation: String, dropoffLocation: String, driverName: String) async throws -> Transfer {
@@ -304,13 +285,21 @@ class APIService: ObservableObject {
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
         
         let (data, response) = try await URLSession.shared.data(for: request)
-        guard (response as? HTTPURLResponse)?.statusCode == 200 else { throw APIError.serverError("Post failed") }
         
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSSZ"
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .formatted(formatter)
-        return try decoder.decode(T.self, from: data)
+        if let httpResponse = response as? HTTPURLResponse {
+            if httpResponse.statusCode == 401 {
+                DispatchQueue.main.async {
+                    self.authToken = nil
+                    self.currentUser = nil
+                }
+                throw APIError.serverError("Oturum süresi doldu")
+            }
+            guard httpResponse.statusCode == 200 else {
+                throw APIError.serverError("Post failed: \(httpResponse.statusCode)")
+            }
+        }
+        
+        return try AppConfig.jsonDecoder.decode(T.self, from: data)
     }
 
     func createSupportTicket(subject: String, message: String) async throws -> String {
@@ -344,19 +333,11 @@ class APIService: ObservableObject {
 
     // MARK: - Operations & Engagement
     func fetchCalls() async throws -> [CallLog] {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSSZ"
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .formatted(formatter)
-        return try await fetch(endpoint: "/calls", decoder: decoder)
+        return try await fetch(endpoint: "/calls", decoder: AppConfig.jsonDecoder)
     }
     
     func fetchNotifications() async throws -> [AppNotification] {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSSZ"
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .formatted(formatter)
-        return try await fetch(endpoint: "/notifications", decoder: decoder)
+        return try await fetch(endpoint: "/notifications", decoder: AppConfig.jsonDecoder)
     }
     
     // MARK: - Creations [NEW]
@@ -379,11 +360,7 @@ class APIService: ObservableObject {
         
         let (responseData, _) = try await URLSession.shared.data(for: request)
         
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSSZ"
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .formatted(formatter)
-        return try decoder.decode(Patient.self, from: responseData)
+        return try AppConfig.jsonDecoder.decode(Patient.self, from: responseData)
     }
     
     func updatePatient(id: String, name: String, email: String, phone: String, tags: String?) async throws -> Patient {
@@ -421,13 +398,21 @@ class APIService: ObservableObject {
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
         
         let (data, response) = try await URLSession.shared.data(for: request)
-        guard (response as? HTTPURLResponse)?.statusCode == 200 else { throw APIError.serverError("Patch failed") }
         
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSSZ"
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .formatted(formatter)
-        return try decoder.decode(T.self, from: data)
+        if let httpResponse = response as? HTTPURLResponse {
+            if httpResponse.statusCode == 401 {
+                DispatchQueue.main.async {
+                    self.authToken = nil
+                    self.currentUser = nil
+                }
+                throw APIError.serverError("Oturum süresi doldu")
+            }
+            guard httpResponse.statusCode == 200 else {
+                throw APIError.serverError("Patch failed: \(httpResponse.statusCode)")
+            }
+        }
+        
+        return try AppConfig.jsonDecoder.decode(T.self, from: data)
     }
     
     func createAppointment(patientId: String, doctorId: String, date: Date, type: String, graftCount: Int?) async throws -> Appointment {
@@ -465,11 +450,7 @@ class APIService: ObservableObject {
         }
         
         // Custom decoder handling
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSSZ"
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .formatted(formatter)
-        return try decoder.decode(Appointment.self, from: responseData) 
+        return try AppConfig.jsonDecoder.decode(Appointment.self, from: responseData) 
     }
     // MARK: - Admin & Settings [NEW]
     func fetchProfile() async throws -> User {
@@ -556,6 +537,14 @@ class APIService: ObservableObject {
              throw APIError.serverError("Invalid response type")
         }
         
+        if httpResponse.statusCode == 401 {
+            DispatchQueue.main.async {
+                self.authToken = nil
+                self.currentUser = nil
+            }
+            throw APIError.serverError("Oturum süresi doldu")
+        }
+        
         guard httpResponse.statusCode == 200 else {
             throw APIError.serverError("Server returned \(httpResponse.statusCode)")
         }
@@ -565,9 +554,7 @@ class APIService: ObservableObject {
         if let decoder = decoder {
             actualDecoder = decoder
         } else {
-            let isoDecoder = JSONDecoder()
-            isoDecoder.dateDecodingStrategy = .iso8601
-            actualDecoder = isoDecoder
+            actualDecoder = AppConfig.jsonDecoder
         }
         
         return try actualDecoder.decode(T.self, from: data)

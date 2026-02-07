@@ -10,6 +10,7 @@ router.get('/', patientController.getPatients);
 router.post('/', patientController.createPatient);
 router.get('/:id', patientController.getPatient);     // [NEW] Single Patient
 router.patch('/:id', patientController.updatePatient); // [NEW] Update & Notes
+router.get('/:patientId/recommendations', authenticate, require('../controllers/featuresController').getRecommendations);
 router.delete('/:id', requireRole('admin'), patientController.deletePatient);
 
 module.exports = router;

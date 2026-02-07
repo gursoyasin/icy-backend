@@ -8,7 +8,7 @@ exports.queryAI = async (req, res, next) => {
     const lowerPrompt = prompt.toLowerCase();
     try {
         let answer = "Bu konuda verilerinizi analiz ediyorum...";
-        // Mock AI Logic
+        // Basic Rule-Based Response Generation for V1
         if (lowerPrompt.includes("randevu") || lowerPrompt.includes("ajanda")) {
             const count = await prisma.appointment.count({ where: { date: { gte: new Date() } } });
             answer = `Şu an sistemde gelecekteki toplam ${count} randevunuz görünüyor.`;
@@ -26,20 +26,97 @@ exports.queryAI = async (req, res, next) => {
     } catch (e) { next(e); }
 };
 
+exports.getRecommendations = async (req, res, next) => {
+    try {
+        const { patientId } = req.params; // Changed from id to patientId to be safe
+        const recommendationService = require('../services/recommendationService');
+        const suggestions = await recommendationService.getRecommendation(patientId);
+        res.json(suggestions || []);
+    } catch (e) { next(e); }
+};
+
 // Marketing
+const messaging = require('../services/messaging');
+const emailService = require('../services/emailService');
+const iysService = require('../services/iysService');
+
 exports.sendCampaign = async (req, res, next) => {
     try {
-        const { title, message, channel, target } = req.body;
-        await prisma.notification.create({
+        const { title, message, channel, targetAudience } = req.body;
+
+        // 1. Create Campaign Record
+        const campaign = await prisma.campaign.create({
             data: {
-                title: "Kampanya Gönderildi",
-                message: `"${title}" -> ${target} (${channel})`,
-                type: "marketing",
-                isRead: false
+                title,
+                message,
+                channel,
+                targetAudience,
+                status: 'processing'
             }
         });
-        await new Promise(r => setTimeout(r, 1000));
-        res.json({ success: true, delivered: 1240 });
+
+        // 2. Select Audience
+        let patients = [];
+        if (targetAudience === 'leads') {
+            patients = await prisma.patient.findMany({ where: { status: 'lead' } });
+        } else {
+            patients = await prisma.patient.findMany(); // All
+        }
+
+        // 3. Send Async (Fire & Forget loop)
+        // In prod, use a queue (BullMQ). Here: simple loop.
+        let sentCount = 0;
+
+        (async () => {
+            for (const p of patients) {
+                const recipient = channel === 'email' ? p.email : p.phoneNumber;
+                if (!recipient) continue;
+
+                // Check Consent / Opt-out
+                const allowed = await iysService.checkConsent(recipient, channel.toUpperCase());
+                if (!allowed) {
+                    console.log(`[Campaign] Skipped ${recipient} due to opt-out`);
+                    continue;
+                }
+
+                // Append Opt-out Link
+                const optOutLink = `https://api.icy.com/public/optout?contact=${recipient}&channel=${channel}`;
+                const finalMsg = `${message}\n\nİptal: ${optOutLink}`;
+
+                let success = false;
+                if (channel === 'email') {
+                    // Email supports HTML
+                    success = await emailService.sendEmail(recipient, title, `<p>${message}</p><br><a href="${optOutLink}">Unsubscribe</a>`, campaign.id);
+                } else {
+                    // SMS / WhatsApp
+                    // Messaging Service needs update to return success boolean or throw
+                    try {
+                        await messaging.sendMessage(channel, recipient, finalMsg, null, null);
+                        success = true;
+                    } catch (e) { success = false; }
+                }
+
+                if (success) {
+                    sentCount++;
+                    // Log details are handled inside services usually, or here:
+                    await prisma.campaignLog.create({
+                        data: {
+                            campaignId: campaign.id,
+                            recipient: recipient,
+                            status: 'sent'
+                        }
+                    });
+                }
+            }
+
+            // Update Campaign Stats
+            await prisma.campaign.update({
+                where: { id: campaign.id },
+                data: { status: 'completed', sentCount }
+            });
+        })();
+
+        res.json({ success: true, campaignId: campaign.id, message: "Campaign started" });
     } catch (e) { next(e); }
 };
 

@@ -1,0 +1,7 @@
+{
+    "welcome": "Welcome",
+    "login_success": "Login successful.",
+    "invalid_credentials": "Invalid credentials.",
+    "appointment_confirmed": "Your appointment is confirmed.",
+    "invoice_generated": "Your invoice has been generated."
+}

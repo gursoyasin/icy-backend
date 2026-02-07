@@ -3,64 +3,43 @@ const logger = require('../utils/logger');
 
 // Real Auth Middleware Simulation
 // In a real production app, we would verify JWT here: jwt.verify(token, process.env.SECRET)
+const jwt = require('jsonwebtoken');
 const authenticate = async (req, res, next) => {
     const authHeader = req.headers.authorization;
 
-    // Allow certain public routes to bypass auth (e.g. Booking, Webhooks)
-    // Note: In a real app, explicit public paths in express router are better, but this mimics the old logic for safety.
-    if (req.path.startsWith('/api/booking') || req.path.startsWith('/api/webhooks') || req.path.startsWith('/api/auth/login')) {
+    // Public Routes Bypass
+    if (req.path.startsWith('/api/booking') || req.path.startsWith('/api/webhooks') || req.path.startsWith('/api/auth/login') || req.path.startsWith('/api/auth/register')) {
         return next();
     }
 
-    if (authHeader) {
-        // Special case for SaaS Admin Panel
-        if (authHeader.includes('mock-admin-token')) {
-            const admin = await prisma.user.findFirst({
-                where: { role: 'admin' },
-                include: { branch: true }
-            });
-            if (admin) {
-                req.user = admin;
-                logger.info(`Authenticated as Admin: ${admin.email}`);
-                return next();
-            }
-        }
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return res.status(401).json({ error: "Unauthorized: No token provided" });
+    }
 
-        // Default Mock Logic: First found user
-        const user = await prisma.user.findFirst({
-            include: {
-                branch: {
-                    include: { clinic: true }
-                }
-            }
+    const token = authHeader.split(' ')[1];
+
+    try {
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+        // Optimistic Approach: Trust token payload to save DB call
+        // Or Safe Approach: Fetch user from DB to ensure they still exist
+        const user = await prisma.user.findUnique({
+            where: { id: decoded.id },
+            include: { branch: true }
         });
 
-        if (user) {
-            req.user = user;
-            // STRICT MULTI-TENANCY INJECTION
-            req.user.clinicId = user.branch?.clinicId;
-            return next();
+        if (!user) {
+            return res.status(401).json({ error: "Unauthorized: User no longer exists" });
         }
+
+        req.user = user;
+        req.user.clinicId = user.branch?.clinicId; // Multi-tenancy context
+        next();
+
+    } catch (e) {
+        logger.warn(`Auth Failed: ${e.message}`);
+        return res.status(401).json({ error: "Unauthorized: Invalid token" });
     }
-
-    // DEV MODE HACK: Attach default admin if no header
-    const defaultUser = await prisma.user.findFirst({
-        where: { role: 'admin' },
-        include: {
-            branch: {
-                include: { clinic: true }
-            }
-        }
-    });
-
-    if (defaultUser) {
-        req.user = defaultUser;
-        // STRICT MULTI-TENANCY INJECTION
-        req.user.clinicId = defaultUser.branch?.clinicId;
-        return next();
-    }
-
-    return res.status(401).json({ error: "Unauthorized" });
 };
 
 // RBAC Guard

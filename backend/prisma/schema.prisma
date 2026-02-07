@@ -16,6 +16,7 @@ model User {
   password  String
   name      String
   role      String   @default("staff") // admin, doctor, staff
+  language  String   @default("tr")    // tr, en, ar
   createdAt DateTime @default(now())
   
   branchId  String?
@@ -25,6 +26,11 @@ model User {
   messages     Message[]
   notifications Notification[]
   tickets      SupportTicket[]
+  performances StaffPerformance[]
+  
+  twoFactorEnabled Boolean @default(false)
+  twoFactorCode    String?
+  twoFactorExpires DateTime?
 }
 
 model Branch {
@@ -55,6 +61,7 @@ model Patient {
   fullName    String
   email       String?
   phoneNumber String?
+  language    String   @default("tr")
   status      String   @default("active") // active, lead, treated
   source      String   @default("Web")    // Web, Instagram, WhatsApp, Referral
   notes       String?
@@ -175,6 +182,8 @@ model Invoice {
   
   patientId   String
   patient     Patient  @relation(fields: [patientId], references: [id])
+  
+  transactions Transaction[]
 }
 
 model Expense {
@@ -183,6 +192,9 @@ model Expense {
   category    String   // Rent, Supplies, Marketing
   description String
   date        DateTime @default(now())
+  
+  supplierId  String?
+  supplier    Supplier? @relation(fields: [supplierId], references: [id])
 }
 
 model Product {
@@ -255,6 +267,7 @@ model Campaign {
   createdAt   DateTime @default(now())
   
   logs        CampaignLog[]
+  emailLogs   EmailLog[]
 }
 
 model CampaignLog {
@@ -285,4 +298,133 @@ model AutomationLog {
   status       String   // success, failed
   timestamp    DateTime @default(now())
   metadata     String?
+}
+
+// --- PHASE 5: COMMUNICATION & IYS ---
+
+model EmailLog {
+  id        String   @id @default(uuid())
+  recipient String
+  subject   String
+  status    String   // sent, failed, delivered, opened
+  error     String?
+  sentAt    DateTime @default(now())
+
+  campaignId String?
+  campaign   Campaign? @relation(fields: [campaignId], references: [id])
+}
+
+model IYSLog {
+  id          String   @id @default(uuid())
+  recipient   String
+  type        String   // EMAIL, CALL, SMS
+  source      String   // HS_FIZIKSEL_ORTAM, HS_ISLAK_IMZA, etc.
+  status      String   // active, passive
+  consentDate DateTime @default(now())
+  syncedAt    DateTime? 
+}
+
+model OptOut {
+  id        String   @id @default(uuid())
+  contact   String   @unique // Phone or Email
+  channel   String   // SMS, EMAIL, ALL
+  reason    String?
+  createdAt DateTime @default(now())
+}
+
+// --- PHASE 6: HR & FINANCE ---
+
+model CommissionRule {
+  id        String   @id @default(uuid())
+  role      String?  // e.g. "doctor"
+  userId    String?  // Specific user override
+  type      String   // "percentage", "fixed"
+  value     Float    // e.g. 10.0 for 10%
+  serviceType String? // e.g. "Hair Transplant", "Botox" - null for all
+  createdAt DateTime @default(now())
+}
+
+model StaffPerformance {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  month     String   // YYYY-MM
+  targetAmount Float
+  actualAmount Float @default(0)
+  commissionEarned Float @default(0)
+}
+
+model Supplier {
+  id        String   @id @default(uuid())
+  name      String
+  taxNumber String?
+  contact   String?
+  balance   Float    @default(0)
+  createdAt DateTime @default(now())
+  
+  expenses  Expense[]
+}
+
+model CurrentAccount {
+  id        String   @id @default(uuid())
+  name      String
+  type      String   // "supplier", "patient", "personnel", "other"
+  balance   Float    @default(0) // Positive = We owe them, Negative = They owe us? Or standard accounting credit/debit logic
+  currency  String   @default("TRY")
+  
+  transactions Transaction[]
+}
+
+model Transaction {
+  id        String   @id @default(uuid())
+  accountId String
+  account   CurrentAccount @relation(fields: [accountId], references: [id])
+  amount    Float
+  type      String   // "credit", "debit"
+  description String
+  date      DateTime @default(now())
+  
+  invoiceId String?
+  invoice   Invoice? @relation(fields: [invoiceId], references: [id])
+}
+
+model EInvoiceProfile {
+  id        String   @id @default(uuid())
+  provider  String   // "bizimhesap", "parasut", "netgsm"
+  apiKey    String
+  apiSecret String
+  isActive  Boolean  @default(true)
+}
+
+// --- PHASE 7: CALL CENTER (VoIP) ---
+
+model CallWebhookLog {
+  id        String   @id @default(uuid())
+  provider  String   // "verimor", "bulutsantralim"
+  caller    String
+  callee    String
+  direction String
+  status    String
+  duration  Int?
+  recordingUrl String?
+  timestamp DateTime @default(now())
+  rawPayload String? // JSON string
+}
+
+// --- PHASE 8: FINAL GAPS ---
+
+model Permission {
+  id          String   @id @default(uuid())
+  action      String   // e.g. "create_patient", "delete_user"
+  description String?
+  roles       RolePermission[]
+}
+
+model RolePermission {
+  id           String     @id @default(uuid())
+  role         String     // "admin", "doctor", "staff" - matches User.role
+  permissionId String
+  permission   Permission @relation(fields: [permissionId], references: [id])
+
+  @@unique([role, permissionId])
 }
