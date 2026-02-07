@@ -33,7 +33,14 @@ const authenticate = async (req, res, next) => {
         }
 
         req.user = user;
-        req.user.clinicId = user.branch?.clinicId; // Multi-tenancy context
+        // Multi-tenancy context: Prefer direct clinicId, fallback to branch's clinic
+        req.user.clinicId = user.clinicId || user.branch?.clinicId;
+
+        if (!req.user.clinicId && user.role !== 'admin') {
+            // Optional: Block access if no clinic is assigned (except super-admin)
+            // logger.warn(`User ${user.id} has no clinicId`);
+        }
+
         next();
 
     } catch (e) {

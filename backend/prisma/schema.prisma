@@ -22,6 +22,10 @@ model User {
   branchId  String?
   branch    Branch?  @relation(fields: [branchId], references: [id])
   
+  // High-performance direct link
+  clinicId  String?
+  clinic    Clinic?  @relation(fields: [clinicId], references: [id])
+  
   appointments Appointment[]
   messages     Message[]
   notifications Notification[]
@@ -54,6 +58,13 @@ model Clinic {
   createdAt DateTime @default(now())
   
   branches  Branch[]
+  users     User[]
+  patients  Patient[]
+  appointments Appointment[]
+  invoices  Invoice[]
+  expenses  Expense[]
+  products  Product[]
+  campaigns Campaign[]
 }
 
 model Patient {
@@ -70,6 +81,9 @@ model Patient {
   
   branchId  String?
   branch    Branch?  @relation(fields: [branchId], references: [id])
+  
+  clinicId  String?
+  clinic    Clinic?  @relation(fields: [clinicId], references: [id])
   
   appointments   Appointment[]
   transfers      Transfer[]
@@ -92,6 +106,9 @@ model Appointment {
   
   doctorId  String
   doctor    User    @relation(fields: [doctorId], references: [id])
+  
+  clinicId  String?
+  clinic    Clinic? @relation(fields: [clinicId], references: [id])
   
   createdAt DateTime @default(now())
 }
@@ -183,6 +200,9 @@ model Invoice {
   patientId   String
   patient     Patient  @relation(fields: [patientId], references: [id])
   
+  clinicId    String?
+  clinic      Clinic?  @relation(fields: [clinicId], references: [id])
+  
   transactions Transaction[]
 }
 
@@ -195,6 +215,9 @@ model Expense {
   
   supplierId  String?
   supplier    Supplier? @relation(fields: [supplierId], references: [id])
+  
+  clinicId    String?
+  clinic      Clinic?  @relation(fields: [clinicId], references: [id])
 }
 
 model Product {
@@ -203,6 +226,9 @@ model Product {
   stock       Int
   price       Float
   sku         String?
+  
+  clinicId    String?
+  clinic      Clinic?  @relation(fields: [clinicId], references: [id])
 }
 
 // Visual Records
@@ -265,6 +291,9 @@ model Campaign {
   sentCount   Int      @default(0)
   status      String   @default("completed")
   createdAt   DateTime @default(now())
+  
+  clinicId    String?
+  clinic      Clinic?  @relation(fields: [clinicId], references: [id])
   
   logs        CampaignLog[]
   emailLogs   EmailLog[]

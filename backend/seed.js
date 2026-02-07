@@ -4,15 +4,25 @@ const prisma = new PrismaClient();
 async function main() {
     console.log('🌱 Seeding database with REAL data structures...');
 
-    // 1. Create Default Branch (Real World: "Main Clinic")
+    // 0. Create Clinic (SaaS Tenant)
+    const clinic = await prisma.clinic.create({
+        data: {
+            name: "Zenith Clinic (Main)",
+            contactInfo: "info@zenith.com"
+        }
+    });
+    console.log(`🏥 Clinic Created: ${clinic.name}`);
+
+    // 1. Create Default Branch linked to Clinic
     const branch = await prisma.branch.create({
         data: {
             name: "4pm Nişantaşı",
             city: "İstanbul",
-            address: "Nişantaşı, Abdi İpekçi Cad. No:42"
+            address: "Nişantaşı, Abdi İpekçi Cad. No:42",
+            clinicId: clinic.id
         }
     });
-    console.log(`🏥 Branch Created: ${branch.name}`);
+    console.log(`📍 Branch Created: ${branch.name}`);
 
     // 2. Create Admin User (Real World: The Doctor owner)
     const bcrypt = require('bcryptjs');
@@ -20,13 +30,18 @@ async function main() {
 
     const user = await prisma.user.upsert({
         where: { email: 'admin@estesoftneo.com' },
-        update: { branchId: branch.id, role: 'admin' },
+        update: {
+            branchId: branch.id,
+            clinicId: clinic.id,
+            role: 'admin'
+        },
         create: {
             email: 'admin@estesoftneo.com',
             name: 'Dr. Yacn',
             password: hashedPassword,
             role: 'admin',
-            branchId: branch.id
+            branchId: branch.id,
+            clinicId: clinic.id
         },
     });
     console.log(`👤 Admin Created: ${user.name} (${user.role})`);
@@ -40,7 +55,8 @@ async function main() {
             name: 'Ayşe Asistan',
             password: hashedPassword,
             role: 'staff',
-            branchId: branch.id
+            branchId: branch.id,
+            clinicId: clinic.id
         }
     });
 
@@ -55,7 +71,7 @@ async function main() {
     });
     console.log(`🔗 Booking Link: zenith.com/book/dr-yacn-consultation`);
 
-    // 5. Create Sample Patients linked to Branch
+    // 5. Create Sample Patients linked to Branch AND Clinic
     const patient1 = await prisma.patient.create({
         data: {
             fullName: "Mehmet Yılmaz (Lead)",
@@ -63,7 +79,8 @@ async function main() {
             phoneNumber: "+90 555 123 45 67",
             status: "lead",
             notes: "Incoming from Instagram Ad",
-            branchId: branch.id
+            branchId: branch.id,
+            clinicId: clinic.id
         }
     });
 
@@ -74,7 +91,8 @@ async function main() {
             phoneNumber: "+49 170 1234567",
             status: "active",
             notes: "Hair Transplant - 3500 Grafts",
-            branchId: branch.id
+            branchId: branch.id,
+            clinicId: clinic.id
         }
     });
 
