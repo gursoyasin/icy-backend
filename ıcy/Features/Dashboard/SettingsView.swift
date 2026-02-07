@@ -107,7 +107,10 @@ struct SettingsView: View {
                         .shadow(color: Color.black.opacity(0.03), radius: 5)
                         
                         // Logout
-                        Button(action: { isLoggedIn = false }) {
+                        Button(action: { 
+                            APIService.shared.logout()
+                            isLoggedIn = false 
+                        }) {
                             Text("Çıkış Yap")
                                 .fontWeight(.bold)
                                 .foregroundColor(.red)

@@ -29,6 +29,12 @@ class APIService: ObservableObject {
     func getCurrentUser() -> User? { return currentUser }
     func updateCurrentUser(_ user: User) { self.currentUser = user }
 
+    func logout() {
+        self.authToken = nil
+        self.currentUser = nil
+        UserDefaults.standard.removeObject(forKey: "authToken")
+    }
+
     
     // MARK: - Auth
     func login(email: String, password: String) async throws -> (User, String) {

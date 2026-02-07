@@ -2,7 +2,7 @@ const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
 async function main() {
-    console.log('🌱 Seeding database with REAL data structures...');
+    console.log('🌱 Seeding database with DEMO data structures...');
 
     // 0. Create Clinic (SaaS Tenant)
     const clinic = await prisma.clinic.upsert({
@@ -50,7 +50,9 @@ async function main() {
         update: {
             branchId: branch.id,
             clinicId: clinic.id,
-            role: 'admin'
+            role: 'admin',
+            name: 'Dr. Yacn',
+            isActive: true
         },
         create: {
             email: 'admin@estesoftneo.com',
@@ -61,7 +63,7 @@ async function main() {
             clinicId: clinic.id
         },
     });
-    console.log(`👤 Admin Created: ${user.name} (${user.role})`);
+    console.log(`👤 Admin Created: ${user.name} (${user.email})`);
 
     // 3. Create Staff User
     await prisma.user.upsert({
@@ -82,59 +84,7 @@ async function main() {
         }
     });
 
-    // 4. Create Public Booking Link
-    await prisma.bookingLink.upsert({
-        where: { slug: "dr-yacn-consultation" },
-        update: { doctorId: user.id },
-        create: {
-            slug: "dr-yacn-consultation",
-            doctorId: user.id
-        }
-    });
-    console.log(`🔗 Booking Link: zenith.com/book/dr-yacn-consultation`);
-
-    // 5. Create Sample Patients linked to Branch AND Clinic
-    const patient1 = await prisma.patient.create({
-        data: {
-            fullName: "Mehmet Yılmaz (Lead)",
-            email: "mehmet@example.com",
-            phoneNumber: "+90 555 123 45 67",
-            status: "lead",
-            notes: "Incoming from Instagram Ad",
-            branchId: branch.id,
-            clinicId: clinic.id
-        }
-    });
-
-    const patient2 = await prisma.patient.create({
-        data: {
-            fullName: "Lisa Mueller (VIP)",
-            email: "lisa@example.de",
-            phoneNumber: "+49 170 1234567",
-            status: "active",
-            notes: "Hair Transplant - 3500 Grafts",
-            branchId: branch.id,
-            clinicId: clinic.id
-        }
-    });
-
-    // 6. Create Real conversations (Whatsapp style)
-    const conv = await prisma.conversation.create({
-        data: {
-            platform: "whatsapp",
-            contact: "+49 170 1234567" // Lisa
-        }
-    });
-
-    await prisma.message.create({
-        data: {
-            conversationId: conv.id,
-            content: "Hello, I am interested in hair transplant.",
-            isFromUser: false
-        }
-    });
-
-    console.log('✅ Real Database Seeded.');
+    console.log('✅ Demo Database Seeded.');
 }
 
 main()

@@ -10,9 +10,22 @@
 		96AD5B922F27C43500E06B01 /* ıcy.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "ıcy.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		966295B42F3739FE0068F62F /* Exceptions for "ıcy" folder in "ıcy" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Tests/APIServiceTests.swift,
+			);
+			target = 96AD5B912F27C43500E06B01 /* ıcy */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		96AD5B942F27C43500E06B01 /* ıcy */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				966295B42F3739FE0068F62F /* Exceptions for "ıcy" folder in "ıcy" target */,
+			);
 			path = "ıcy";
 			sourceTree = "<group>";
 		};

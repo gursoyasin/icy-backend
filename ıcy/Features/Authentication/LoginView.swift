@@ -145,7 +145,10 @@ struct LoginView: View {
                         self.show2FAInput = true
                     }
                 } else if let token = response.token {
-                    APIService.shared.token = token // Manually set token since we bypassed shared login
+                    APIService.shared.authToken = token // Manually set token since we bypassed shared login
+                    if let user = response.user {
+                        APIService.shared.currentUser = user // Update in-memory user
+                    }
                     withAnimation {
                         isLoggedIn = true
                     }
@@ -185,6 +188,7 @@ struct LoginResponse: Codable {
     let require2fa: Bool?
     let userId: String?
     let message: String?
+    let user: User? // Added user object
 }
 
 struct LoginView_Previews: PreviewProvider {

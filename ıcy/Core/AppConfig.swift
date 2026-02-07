@@ -4,7 +4,7 @@ struct AppConfig {
     static let baseURL: String = {
         // In a real app, read from Info.plist or Build Configuration
         #if DEBUG
-        return "https://icy-backend-jsju.onrender.com/api" // Or localhost if running locally
+        return "https://icy-backend-jsju.onrender.com/api"
         #else
         return "https://icy-backend-jsju.onrender.com/api"
         #endif

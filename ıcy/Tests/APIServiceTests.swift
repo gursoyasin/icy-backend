@@ -1,4 +1,5 @@
 import XCTest
+#if canImport(XCTest)
 @testable import icy // Ensure this matches user's product module name
 
 class APIServiceTests: XCTestCase {
@@ -39,3 +40,4 @@ class APIServiceTests: XCTestCase {
         XCTAssertTrue(true, "Test template created. Needs APIService refactor for DI.")
     }
 }
+#endif
