@@ -12,7 +12,7 @@ const publicRoutes = require('./publicRoutes');
 
 const router = express.Router();
 
-router.use('/', publicRoutes);
+router.use('/public', publicRoutes);
 
 router.use('/auth', authRoutes);
 router.use('/', statsRoutes);
@@ -33,4 +33,4 @@ router.use('/platform', require('./platformRoutes'));
 
 module.exports = router;
 
-module.exports = router;
+
