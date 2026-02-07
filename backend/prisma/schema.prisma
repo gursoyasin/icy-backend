@@ -10,50 +10,13 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model User {
-  id        String   @id @default(uuid())
-  email     String   @unique
-  password  String
-  name      String
-  role      String   @default("staff") // admin, doctor, staff
-  language  String   @default("tr")    // tr, en, ar
-  createdAt DateTime @default(now())
-  
-  branchId  String?
-  branch    Branch?  @relation(fields: [branchId], references: [id])
-  
-  // High-performance direct link
-  clinicId  String?
-  clinic    Clinic?  @relation(fields: [clinicId], references: [id])
-  
-  appointments Appointment[]
-  messages     Message[]
-  notifications Notification[]
-  tickets      SupportTicket[]
-  performances StaffPerformance[]
-  
-  twoFactorEnabled Boolean @default(false)
-  twoFactorCode    String?
-  twoFactorExpires DateTime?
-}
-
-model Branch {
-  id        String   @id @default(uuid())
-  name      String
-  address   String?
-  city      String
-  createdAt DateTime @default(now())
-  
-  users     User[]
-  patients  Patient[]
-  
-  clinicId  String?
-  clinic    Clinic? @relation(fields: [clinicId], references: [id])
-}
 
 model Clinic {
   id        String   @id @default(uuid())
   name      String
+  slug      String   @unique
+  plan      String   @default("BASIC") // BASIC, PRO, ENTERPRISE
+  isActive  Boolean  @default(true)
   contactInfo String?
   createdAt DateTime @default(now())
   
@@ -65,25 +28,74 @@ model Clinic {
   expenses  Expense[]
   products  Product[]
   campaigns Campaign[]
+  consents  Consent[]
+}
+
+model Branch {
+  id        String   @id @default(uuid())
+  name      String
+  address   String?
+  city      String
+  phone     String?
+  createdAt DateTime @default(now())
+  
+  users     User[]
+  patients  Patient[]
+  
+  clinicId  String
+  clinic    Clinic @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+
+  @@index([clinicId])
+  @@unique([clinicId, name])
+}
+
+model User {
+  id        String   @id @default(uuid())
+  clinicId  String
+  branchId  String?
+  
+  email     String   // Not unique globally anymore, unique per clinic
+  password  String
+  name      String
+  role      String   @default("staff")
+  language  String   @default("tr")
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  
+  clinic    Clinic   @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  branch    Branch?  @relation(fields: [branchId], references: [id])
+  
+  appointments Appointment[]
+  messages     Message[]
+  notifications Notification[]
+  tickets      SupportTicket[]
+  performances StaffPerformance[]
+  
+  twoFactorEnabled Boolean @default(false)
+  twoFactorCode    String?
+  twoFactorExpires DateTime?
+
+  @@index([clinicId])
+  @@unique([clinicId, email])
 }
 
 model Patient {
   id          String   @id @default(uuid())
+  clinicId    String
+  branchId    String?
+
   fullName    String
   email       String?
   phoneNumber String?
   language    String   @default("tr")
-  status      String   @default("active") // active, lead, treated
-  source      String   @default("Web")    // Web, Instagram, WhatsApp, Referral
+  status      String   @default("active")
+  source      String   @default("Web")
   notes       String?
-  tags        String?  // CSV: VIP, Risk, etc.
+  tags        String?
   createdAt   DateTime @default(now())
   
-  branchId  String?
+  clinic    Clinic   @relation(fields: [clinicId], references: [id], onDelete: Cascade)
   branch    Branch?  @relation(fields: [branchId], references: [id])
-  
-  clinicId  String?
-  clinic    Clinic?  @relation(fields: [clinicId], references: [id])
   
   appointments   Appointment[]
   transfers      Transfer[]
@@ -92,25 +104,53 @@ model Patient {
   photos         PhotoEntry[]
   calls          CallLog[]
   surveys        SurveyResult[]
+  consents       Consent[]
+
+  @@index([clinicId])
+  @@unique([clinicId, phoneNumber])
 }
 
 model Appointment {
   id        String   @id @default(uuid())
+  clinicId  String
+  branchId  String? // Optional override
+  patientId String
+  doctorId  String
+  
   date      DateTime
   type      String
-  graftCount Int?     // For Hair Transplant analytics
-  status    String   @default("scheduled") // scheduled, completed, cancelled
-  
-  patientId String
-  patient   Patient @relation(fields: [patientId], references: [id])
-  
-  doctorId  String
-  doctor    User    @relation(fields: [doctorId], references: [id])
-  
-  clinicId  String?
-  clinic    Clinic? @relation(fields: [clinicId], references: [id])
+  graftCount Int?
+  status    String   @default("scheduled")
   
   createdAt DateTime @default(now())
+
+  clinic    Clinic   @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  patient   Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  doctor    User     @relation(fields: [doctorId], references: [id])
+
+  @@index([clinicId])
+  @@index([clinicId, date])
+  @@index([clinicId, patientId])
+}
+
+model Consent {
+  id        String   @id @default(uuid())
+  clinicId  String
+  patientId String
+
+  type      String   // "MARKETING_SMS", "KVKK"
+  granted   Boolean  @default(false)
+  grantedAt DateTime?
+  revokedAt DateTime?
+  source    String?
+  
+  createdAt DateTime @default(now())
+
+  clinic    Clinic   @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  patient   Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@index([clinicId])
+  @@unique([clinicId, patientId, type])
 }
 
 model Conversation {

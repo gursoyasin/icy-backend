@@ -2,17 +2,17 @@ const prisma = require('../config/prisma');
 
 exports.getAppointments = async (req, res, next) => {
     try {
-        // Logic: Admin/Staff -> See All in Clinic. Doctor -> See Own.
-        let filter = {};
-
-        // 1. STRICT MULTI-TENANCY: Clinic Isolation
-        filter.patient = {
-            branch: { clinicId: req.user.clinicId }
+        // Logic: Admin/Staff -> See All in Clinic/Branch. Doctor -> See Own.
+        let filter = {
+            clinicId: req.user.clinicId // Strict Isolation
         };
 
         // 2. Role Restriction
         if (req.user.role === 'doctor') {
             filter.doctorId = req.user.id;
+        } else if (req.user.role !== 'admin') {
+            // Staff sees only their branch
+            filter.branchId = req.user.branchId;
         }
 
         const appointments = await prisma.appointment.findMany({
@@ -39,7 +39,6 @@ exports.getAppointments = async (req, res, next) => {
 
 
 // Internal Create (with n8n trigger)
-// Internal Create (with n8n trigger)
 exports.createAppointment = async (req, res, next) => {
     try {
         const { patientId, doctorId, date, type, status, graftCount } = req.body;
@@ -49,6 +48,7 @@ exports.createAppointment = async (req, res, next) => {
         const appointmentDate = new Date(date);
         const conflict = await prisma.appointment.findFirst({
             where: {
+                clinicId: req.user.clinicId, // Strict
                 doctorId: doctorId,
                 date: appointmentDate,
                 status: { not: 'cancelled' }
@@ -66,7 +66,9 @@ exports.createAppointment = async (req, res, next) => {
                 status: status || 'scheduled',
                 graftCount: graftCount || 0,
                 patientId,
-                doctorId
+                doctorId,
+                clinicId: req.user.clinicId,
+                branchId: req.user.branchId
             },
             include: {
                 patient: true,
@@ -94,9 +96,6 @@ exports.createAppointment = async (req, res, next) => {
             messaging.sendMessage('sms', appointment.patient.phoneNumber, message);
         }
 
-        // PRD: Automation Trigger "Appointment Created"
-        // (Redundant block removed)
-
         res.json(appointment);
     } catch (e) { next(e); }
 };
@@ -105,6 +104,12 @@ exports.updateAppointmentStatus = async (req, res, next) => {
     try {
         const { id } = req.params;
         const { status } = req.body; // 'arrived', 'no-show', 'completed', 'cancelled'
+
+        // Verify Ownership First
+        const current = await prisma.appointment.findFirst({
+            where: { id, clinicId: req.user.clinicId }
+        });
+        if (!current) return res.status(404).json({ error: "Appointment not found" });
 
         const appointment = await prisma.appointment.update({
             where: { id },
@@ -137,6 +142,13 @@ exports.updateAppointmentStatus = async (req, res, next) => {
 exports.cancelAppointment = async (req, res, next) => {
     try {
         const { id } = req.params;
+
+        // Verify Ownership
+        const current = await prisma.appointment.findFirst({
+            where: { id, clinicId: req.user.clinicId }
+        });
+        if (!current) return res.status(404).json({ error: "Appointment not found" });
+
         const appointment = await prisma.appointment.update({
             where: { id },
             data: { status: 'cancelled' },
@@ -158,6 +170,8 @@ exports.cancelAppointment = async (req, res, next) => {
 };
 
 // Public Booking Flows
+// NOTE: Public booking is tricky with SaaS. The link must belong to a tenant.
+// We assume BookingLink -> Doctor -> Clinic hierarchy.
 exports.getPublicBookingSlot = async (req, res, next) => {
     try {
         const link = await prisma.bookingLink.findUnique({
@@ -166,6 +180,10 @@ exports.getPublicBookingSlot = async (req, res, next) => {
         if (!link || !link.isActive) return res.status(404).json({ error: "Link not found" });
 
         const doctorId = link.doctorId;
+        const doctor = await prisma.user.findUnique({ where: { id: doctorId } });
+        if (!doctor) return res.status(404).json({ error: "Doctor not found" });
+
+        const clinicId = doctor.clinicId;
 
         // 1. Fetch Doctor's Schedule for next 7 days
         const start = new Date();
@@ -174,6 +192,7 @@ exports.getPublicBookingSlot = async (req, res, next) => {
 
         const busySlots = await prisma.appointment.findMany({
             where: {
+                clinicId: clinicId, // SaaS Scope
                 doctorId: doctorId,
                 status: { not: 'cancelled' },
                 date: { gte: start, lte: end }
@@ -189,8 +208,6 @@ exports.getPublicBookingSlot = async (req, res, next) => {
         for (let d = 0; d < 7; d++) {
             const day = new Date(start);
             day.setDate(day.getDate() + d);
-
-            // Skip Sundays (0) if needed, currently allowing all
 
             for (let hour = 9; hour < 17; hour++) {
                 const slot = new Date(day);
@@ -217,15 +234,32 @@ exports.createPublicBooking = async (req, res, next) => {
 
         const { patientName, phone, date } = req.body;
 
-        // 1. Create Lead Patient
-        const patient = await prisma.patient.create({
-            data: {
-                fullName: patientName,
-                phoneNumber: phone,
-                status: 'lead',
-                notes: 'Online Booking'
-            }
+        // Find Doctor and their Clinic
+        const doctor = await prisma.user.findUnique({ where: { id: link.doctorId }, include: { branch: true } });
+        if (!doctor) return res.status(404).json({ error: "Doctor invalid" });
+
+        const clinicId = doctor.clinicId || doctor.branch?.clinicId;
+
+        // 1. Create/Find Patient (Upsert by phone within Clinic)
+        // Note: Public booking might need to be careful with upserts to not expose info.
+        // For now, we Create or Find.
+
+        let patient = await prisma.patient.findFirst({
+            where: { clinicId, phoneNumber: phone }
         });
+
+        if (!patient) {
+            patient = await prisma.patient.create({
+                data: {
+                    fullName: patientName,
+                    phoneNumber: phone,
+                    status: 'lead',
+                    notes: 'Online Booking',
+                    clinicId: clinicId,
+                    branchId: doctor.branchId
+                }
+            });
+        }
 
         // 2. Create Appointment
         const appointment = await prisma.appointment.create({
@@ -234,7 +268,9 @@ exports.createPublicBooking = async (req, res, next) => {
                 type: 'Online Consultation',
                 status: 'scheduled',
                 doctorId: link.doctorId,
-                patientId: patient.id
+                patientId: patient.id,
+                clinicId: clinicId,
+                branchId: doctor.branchId
             }
         });
 

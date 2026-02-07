@@ -5,14 +5,11 @@ exports.getPatients = async (req, res, next) => {
     try {
         const { search, limit } = req.query;
 
-        let where = {};
-
         // STRICT MULTI-TENANCY: Clinic Isolation
-        // Admin sees ALL branches in the clinic.
-        // Staff/Doctor sees ONLY their branch (Optional refinement, but user said "Admin sees all")
-
         // Base Rule: Must belong to User's Clinic
-        where.branch = { clinicId: req.user.clinicId };
+        let where = {
+            clinicId: req.user.clinicId
+        };
 
         // Sub-rule: If NOT Admin, restrict to specific branch? 
         // User scenario didn't specify Staff/Doctor cross-branch access, but keeping it strict for now.
@@ -24,8 +21,8 @@ exports.getPatients = async (req, res, next) => {
         // Search Implementation (B4)
         if (search) {
             where.OR = [
-                { fullName: { contains: search } }, // Case-insensitive handled by DB usually, or need mode: 'insensitive' if PG
-                { phoneNumber: { contains: search } }
+                { fullName: { contains: search, mode: 'insensitive' } },
+                { phoneNumber: { contains: search, mode: 'insensitive' } }
             ];
         }
 
@@ -43,18 +40,22 @@ exports.getPatients = async (req, res, next) => {
 exports.getPatient = async (req, res, next) => {
     try {
         const { id } = req.params;
-        const patient = await prisma.patient.findUnique({
-            where: { id },
+        const patient = await prisma.patient.findFirst({
+            where: {
+                id,
+                clinicId: req.user.clinicId // Security: Prevent ID enumeration across tenants
+            },
             include: {
                 appointments: { orderBy: { date: 'desc' } },
                 invoices: true,
-                photos: true
+                photos: true,
+                consents: true
             }
         });
 
         if (!patient) return res.status(404).json({ error: "Patient not found" });
 
-        // Security Check: Isolation
+        // Extra Branch Check (Optional if Clinic check passes, but good for internal isolation)
         if (req.user.role !== 'admin' && patient.branchId !== req.user.branchId) {
             return res.status(403).json({ error: "Access denied" });
         }
@@ -75,7 +76,8 @@ exports.createPatient = async (req, res, next) => {
         const patient = await prisma.patient.create({
             data: {
                 ...req.body,
-                branchId: req.user.branchId
+                branchId: req.user.branchId,
+                clinicId: req.user.clinicId // Auto-assign Clinic
             }
         });
         res.json(patient);
@@ -88,9 +90,15 @@ exports.updatePatient = async (req, res, next) => {
         const { id } = req.params;
         const updateData = req.body;
 
+        // Verify Existence & Ownership first
+        const current = await prisma.patient.findFirst({
+            where: { id, clinicId: req.user.clinicId },
+            select: { notes: true }
+        });
+        if (!current) return res.status(404).json({ error: "Patient not found" });
+
         // If appending a note (Special Helper)
         if (updateData.appendNote) {
-            const current = await prisma.patient.findUnique({ where: { id }, select: { notes: true } });
             const newNote = `\n[${new Date().toLocaleDateString()}] ${updateData.appendNote}`;
             updateData.notes = (current.notes || "") + newNote;
             delete updateData.appendNote;
@@ -115,6 +123,12 @@ exports.deletePatient = async (req, res, next) => {
     try {
         const patientId = req.params.id;
 
+        // Verify Ownership
+        const patient = await prisma.patient.findFirst({
+            where: { id: patientId, clinicId: req.user.clinicId }
+        });
+        if (!patient) return res.status(404).json({ error: "Patient not found" });
+
         // 1. LEGAL: Audit Initiation
         audit.logAudit(req.user.email, 'DELETE_INIT', patientId, 'Right TO Be Forgotten request started');
 
@@ -126,6 +140,7 @@ exports.deletePatient = async (req, res, next) => {
         await prisma.photoEntry.deleteMany({ where: { patientId } });
         await prisma.callLog.deleteMany({ where: { patientId } });
         await prisma.surveyResult.deleteMany({ where: { patientId } });
+        await prisma.consent.deleteMany({ where: { patientId } });
 
         await prisma.patient.delete({ where: { id: patientId } });
 

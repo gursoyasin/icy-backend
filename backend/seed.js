@@ -5,31 +5,48 @@ async function main() {
     console.log('🌱 Seeding database with REAL data structures...');
 
     // 0. Create Clinic (SaaS Tenant)
-    const clinic = await prisma.clinic.create({
-        data: {
+    const clinic = await prisma.clinic.upsert({
+        where: { slug: "zenith-main" },
+        update: {},
+        create: {
             name: "Zenith Clinic (Main)",
+            slug: "zenith-main",
+            plan: "ENTERPRISE",
+            isActive: true,
             contactInfo: "info@zenith.com"
         }
     });
-    console.log(`🏥 Clinic Created: ${clinic.name}`);
+    console.log(`🏥 Clinic Created/Found: ${clinic.name}`);
 
     // 1. Create Default Branch linked to Clinic
-    const branch = await prisma.branch.create({
-        data: {
+    const branch = await prisma.branch.upsert({
+        where: {
+            clinicId_name: {
+                clinicId: clinic.id,
+                name: "4pm Nişantaşı"
+            }
+        },
+        update: {},
+        create: {
             name: "4pm Nişantaşı",
             city: "İstanbul",
             address: "Nişantaşı, Abdi İpekçi Cad. No:42",
             clinicId: clinic.id
         }
     });
-    console.log(`📍 Branch Created: ${branch.name}`);
+    console.log(`📍 Branch Created/Found: ${branch.name}`);
 
     // 2. Create Admin User (Real World: The Doctor owner)
     const bcrypt = require('bcryptjs');
     const hashedPassword = await bcrypt.hash('password123', 10);
 
     const user = await prisma.user.upsert({
-        where: { email: 'admin@estesoftneo.com' },
+        where: {
+            clinicId_email: {
+                email: 'admin@estesoftneo.com',
+                clinicId: clinic.id
+            }
+        },
         update: {
             branchId: branch.id,
             clinicId: clinic.id,
@@ -48,7 +65,12 @@ async function main() {
 
     // 3. Create Staff User
     await prisma.user.upsert({
-        where: { email: 'staff@estesoftneo.com' },
+        where: {
+            clinicId_email: {
+                email: 'staff@estesoftneo.com',
+                clinicId: clinic.id
+            }
+        },
         update: {},
         create: {
             email: 'staff@estesoftneo.com',
