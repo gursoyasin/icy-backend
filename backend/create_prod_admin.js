@@ -22,7 +22,7 @@ async function main() {
     }
 
     // 2. Create Admin User
-    const email = 'admin@icy.com';
+    const email = 'admin@zenith.com';
     const password = 'password123';
     const hashedPassword = await bcrypt.hash(password, 10);
 

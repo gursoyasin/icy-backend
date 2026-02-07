@@ -21,11 +21,11 @@ struct SplashScreenView: View {
                         .frame(width: 80, height: 80)
                         .foregroundColor(.blue)
                     
-                    Text("ICY CLINIC")
+                    Text("ZENITH CLINIC")
                         .font(.custom("AvenirNext-Bold", size: 32))
                         .foregroundColor(.primary)
                     
-                    Text("Powered by Estesoft Neo")
+                    Text("Powered by Zenith AI")
                         .font(.caption)
                         .foregroundColor(.gray)
                         .padding(.top, 20)

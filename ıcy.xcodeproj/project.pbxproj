@@ -256,6 +256,7 @@
 				DEVELOPMENT_TEAM = W99ARX626K;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = ZENITH;
 				INFOPLIST_KEY_LSApplicationCategoryType = "";
 				INFOPLIST_KEY_NSCameraUsageDescription = "Kamera Kullanım Onayı";
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "Galeriye Erişmek";
@@ -291,6 +292,7 @@
 				DEVELOPMENT_TEAM = W99ARX626K;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = ZENITH;
 				INFOPLIST_KEY_LSApplicationCategoryType = "";
 				INFOPLIST_KEY_NSCameraUsageDescription = "Kamera Kullanım Onayı";
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "Galeriye Erişmek";

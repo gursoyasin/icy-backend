@@ -34,7 +34,7 @@ async function main() {
             // Allow fixing this on the fly
             const newClinic = await prisma.clinic.create({
                 data: {
-                    name: 'ICY Clinic (Main)',
+                    name: 'Zenith Clinic (Main)',
                     contactInfo: user.email
                 }
             });

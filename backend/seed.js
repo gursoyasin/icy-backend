@@ -53,7 +53,7 @@ async function main() {
             doctorId: user.id
         }
     });
-    console.log(`🔗 Booking Link: icy.com/book/dr-yacn-consultation`);
+    console.log(`🔗 Booking Link: zenith.com/book/dr-yacn-consultation`);
 
     // 5. Create Sample Patients linked to Branch
     const patient1 = await prisma.patient.create({
