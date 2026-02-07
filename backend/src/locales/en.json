@@ -1,7 +1,6 @@
 {
-    "welcome": "Welcome to Zenith",
-    "login_success": "Login successful.",
-    "invalid_credentials": "Invalid credentials.",
-    "appointment_confirmed": "Your appointment is confirmed.",
-    "invoice_generated": "Your invoice has been generated."
+    "welcome_message": "Welcome",
+    "login_error": "Login failed",
+    "appointment_confirmed": "Appointment confirmed",
+    "birthday_wish": "Happy Birthday!"
 }

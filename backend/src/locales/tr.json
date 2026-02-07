@@ -1,7 +1,6 @@
 {
-    "welcome": "Zenith'e Hoşgeldiniz",
-    "login_success": "Giriş başarılı.",
-    "invalid_credentials": "Hatalı kullanıcı adı veya şifre.",
-    "appointment_confirmed": "Randevunuz onaylandı.",
-    "invoice_generated": "Faturanız oluşturuldu."
+    "welcome_message": "Hoşgeldiniz",
+    "login_error": "Giriş başarısız",
+    "appointment_confirmed": "Randevunuz onaylandı",
+    "birthday_wish": "Doğum gününüz kutlu olsun!"
 }

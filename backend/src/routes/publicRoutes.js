@@ -1,13 +1,18 @@
 const express = require('express');
-const publicController = require('../controllers/publicController');
-const leadController = require('../controllers/leadController');
-
 const router = express.Router();
+const path = require('path');
+const fs = require('fs');
 
-// No authentication middleware here
-router.post('/public/book', publicController.bookAppointment);
+// Public route to get locale JSON
+router.get('/locales/:lang', (req, res) => {
+    const lang = req.params.lang || 'tr';
+    const filePath = path.join(__dirname, '..', 'locales', `${lang}.json`);
 
-// Lead Generation Webhook (Facebook/Instagram/Landing Page)
-router.post('/leads/webhook', leadController.webhook);
+    if (fs.existsSync(filePath)) {
+        res.sendFile(filePath);
+    } else {
+        res.status(404).json({ error: "Locale not found" });
+    }
+});
 
 module.exports = router;

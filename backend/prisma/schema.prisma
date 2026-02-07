@@ -87,6 +87,7 @@ model Patient {
   fullName    String
   email       String?
   phoneNumber String?
+  dateOfBirth DateTime?
   language    String   @default("tr")
   status      String   @default("active")
   source      String   @default("Web")
