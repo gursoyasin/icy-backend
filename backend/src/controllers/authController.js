@@ -213,29 +213,3 @@ exports.deleteUser = async (req, res, next) => {
         next(e);
     }
 };
-exports.fixAdminName = async (req, res, next) => {
-    try {
-        // Find admin by email
-        const admin = await prisma.user.findFirst({
-            where: { email: 'admin@zenith.com' }
-        });
-
-        if (!admin) {
-            return res.status(404).json({ error: "Admin user not found" });
-        }
-
-        // Update name
-        const updated = await prisma.user.update({
-            where: { id: admin.id },
-            data: { name: 'Süper Yönetici' }
-        });
-
-        res.json({
-            success: true,
-            message: "Admin ismi düzeltildi.",
-            user: { email: updated.email, name: updated.name }
-        });
-    } catch (e) {
-        next(e);
-    }
-};
