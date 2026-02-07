@@ -6,7 +6,7 @@ const messaging = require('../services/messaging');
 exports.login = async (req, res, next) => {
     const { email, password } = req.body;
     try {
-        const user = await prisma.user.findUnique({
+        const user = await prisma.user.findFirst({
             where: { email },
             include: { branch: true }
         });
@@ -116,7 +116,7 @@ exports.register = async (req, res, next) => {
     try {
         const { name, email, password, role } = req.body;
 
-        const existing = await prisma.user.findUnique({ where: { email } });
+        const existing = await prisma.user.findFirst({ where: { email } });
         if (existing) return res.status(400).json({ error: "Email already in use" });
 
         // Hash password
@@ -209,6 +209,32 @@ exports.deleteUser = async (req, res, next) => {
 
         await prisma.user.delete({ where: { id } });
         res.json({ message: "Personel silindi" });
+    } catch (e) {
+        next(e);
+    }
+};
+exports.fixAdminName = async (req, res, next) => {
+    try {
+        // Find admin by email
+        const admin = await prisma.user.findFirst({
+            where: { email: 'admin@zenith.com' }
+        });
+
+        if (!admin) {
+            return res.status(404).json({ error: "Admin user not found" });
+        }
+
+        // Update name
+        const updated = await prisma.user.update({
+            where: { id: admin.id },
+            data: { name: 'Süper Yönetici' }
+        });
+
+        res.json({
+            success: true,
+            message: "Admin ismi düzeltildi.",
+            user: { email: updated.email, name: updated.name }
+        });
     } catch (e) {
         next(e);
     }
