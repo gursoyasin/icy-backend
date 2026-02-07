@@ -13,7 +13,7 @@ router.get('/doctors', authenticate, authController.getDoctors);
 router.get('/users', authenticate, authController.listUsers);
 router.delete('/users/:id', authenticate, authController.deleteUser);
 router.post('/change-password', authenticate, authController.changePassword);
-router.get('/debug-admin', authController.debugAdminUser); // Debug Route
+
 
 
 module.exports = router;

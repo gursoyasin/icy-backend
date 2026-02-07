@@ -213,14 +213,4 @@ exports.deleteUser = async (req, res, next) => {
         next(e);
     }
 };
-exports.debugAdminUser = async (req, res, next) => {
-    try {
-        const users = await prisma.user.findMany({
-            where: { email: 'admin@zenith.com' },
-            select: { id: true, name: true, email: true, clinicId: true, role: true }
-        });
-        res.json({ count: users.length, users });
-    } catch (e) {
-        next(e);
-    }
-};
+
