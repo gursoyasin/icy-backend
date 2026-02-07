@@ -7,6 +7,8 @@ struct User: Identifiable, Codable {
     let role: UserRole
     let avatarUrl: String?
     let branch: Branch?
+    let allowedIPs: [String]?
+    let lastLoginIP: String?
 }
 
 struct Branch: Identifiable, Codable {

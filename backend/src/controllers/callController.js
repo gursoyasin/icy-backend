@@ -58,3 +58,14 @@ exports.webhook = async (req, res, next) => {
         res.json({ success: true });
     } catch (e) { next(e); }
 };
+
+exports.getCalls = async (req, res, next) => {
+    try {
+        const calls = await prisma.callLog.findMany({
+            orderBy: { timestamp: 'desc' },
+            take: 50,
+            include: { patient: true }
+        });
+        res.json(calls);
+    } catch (e) { next(e); }
+};

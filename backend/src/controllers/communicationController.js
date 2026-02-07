@@ -30,3 +30,14 @@ exports.optOut = async (req, res, next) => {
         next(e);
     }
 };
+
+exports.getNotifications = async (req, res, next) => {
+    try {
+        const notifications = await prisma.notification.findMany({
+            where: { userId: req.user.id },
+            orderBy: { createdAt: 'desc' },
+            take: 20
+        });
+        res.json(notifications);
+    } catch (e) { next(e); }
+};

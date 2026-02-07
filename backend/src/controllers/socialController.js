@@ -116,3 +116,48 @@ exports.replyToMessage = async (req, res) => {
         res.status(500).json({ error: e.message });
     }
 };
+
+// GET /api/conversations
+exports.getConversations = async (req, res, next) => {
+    try {
+        const conversations = await prisma.conversation.findMany({
+            orderBy: { updatedAt: 'desc' },
+            include: {
+                messages: {
+                    orderBy: { createdAt: 'desc' },
+                    take: 1
+                }
+            }
+        });
+
+        // Format for frontend
+        const data = conversations.map(c => ({
+            id: c.id,
+            platform: c.platform,
+            contact: c.contact,
+            lastMessage: c.messages[0]?.content || '',
+            updatedAt: c.updatedAt
+        }));
+
+        res.json(data);
+    } catch (e) { next(e); }
+};
+
+// GET /api/conversations/:id/messages
+exports.getMessages = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        const messages = await prisma.message.findMany({
+            where: { conversationId: id },
+            orderBy: { createdAt: 'asc' }
+        });
+        res.json(messages);
+    } catch (e) { next(e); }
+};
+
+// POST /api/messages (New Conversation or Reply)
+exports.sendMessage = async (req, res, next) => {
+    // Basic wrapper, in real app might need to create conversation if not exists
+    // For now assuming existing conversationId is passed, similar to replyToMessage
+    return exports.replyToMessage(req, res, next);
+};
